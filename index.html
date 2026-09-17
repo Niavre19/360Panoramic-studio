@@ -612,6 +612,57 @@
     .btnrow{grid-template-columns:1fr}
     .mode-tabs{flex-direction:column;align-items:stretch}
   }
+
+  /* ---------- Tab 3 · 2D → HDRI Editor ---------- */
+  #hdrEditorWorkspace > .controls{position:static}
+  #hdrEditorWorkspace .stage-panel{display:flex;flex-direction:column;height:calc(100dvh - 24px);min-height:420px}
+  #hdrEditorWorkspace .stage-head{flex:0 0 auto}
+  #editorPreview{
+    flex:1;min-height:0;padding:8px;background:var(--panel-2);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;container-type:size;
+  }
+  .editor-fitbox{
+    position:relative;width:min(100cqw,calc(100cqh * var(--editor-ratio,2)));
+    max-width:100%;aspect-ratio:var(--editor-ratio,2);flex:none;
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;
+    background:var(--panel);box-shadow:0 10px 28px rgba(15,23,42,.10);
+  }
+  #editorCanvas,#editorOverlayCanvas{
+    position:absolute;inset:0;width:100%;height:100%;display:block;
+  }
+  #editorCanvas{touch-action:none}
+  #editorOverlayCanvas{z-index:3;pointer-events:none}
+  #editorCanvas.can-drag{cursor:grab}
+  #editorCanvas.is-dragging{cursor:grabbing}
+  .editor-badge{
+    position:absolute;z-index:4;right:10px;bottom:10px;padding:6px 9px;
+    border:1px solid var(--border);border-radius:999px;
+    background:color-mix(in srgb,var(--panel) 88%,transparent);
+    color:var(--muted);font-size:.7rem;font-weight:900;backdrop-filter:blur(8px);
+  }
+  .editor-mini-status{
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    padding:10px 14px;border-top:1px solid var(--border);font-size:.74rem;color:var(--muted)
+  }
+  .editor-mini-status strong{color:var(--text)}
+  .editor-source-status{margin-top:9px}
+  .editor-subtabs{display:flex;gap:7px;flex-wrap:wrap}
+  .editor-subtab{
+    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+    padding:8px 10px;border-radius:9px;font-size:.75rem;font-weight:850;cursor:pointer
+  }
+  .editor-subtab.active{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+  .editor-section-title{margin:0 0 10px;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text)}
+  .editor-inline-note{font-size:.72rem;color:var(--muted);line-height:1.45;margin-top:6px}
+  .editor-output-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+  .editor-drag-help{font-size:.74rem;color:var(--muted);margin-top:8px;line-height:1.45}
+  @media (min-width:981px){
+    #hdrEditorWorkspace > .stage-column{position:sticky;top:12px;align-self:start;display:block}
+  }
+  @media (max-width:640px){
+    .editor-output-actions{grid-template-columns:1fr}
+  }
+
 </style>
 </head>
 <body>
@@ -640,6 +691,7 @@
   <nav class="mode-tabs" role="tablist" aria-label="Projection workspace">
     <button id="sphericalModeTab" class="mode-tab active" type="button" role="tab" aria-selected="true">Spherical Projection</button>
     <button id="panoramicModeTab" class="mode-tab" type="button" role="tab" aria-selected="false">360 Panoramic</button>
+    <button id="hdrEditorModeTab" class="mode-tab" type="button" role="tab" aria-selected="false">2D → HDRI Editor</button>
   </nav>
 
   <main id="sphericalWorkspace" class="workspace app-view active">
@@ -1006,6 +1058,265 @@
 
     </section>
   </main>
+
+  <main id="hdrEditorWorkspace" class="workspace app-view">
+    <aside class="panel controls">
+      <h2 class="panel-title">2D → HDRI Editor · Adaptive Spherical Reconstruction</h2>
+
+      <section class="group">
+        <h3 class="editor-section-title">01 · Source Image</h3>
+        <div class="field">
+          <label for="editorFileInput">Import flat / perspective bitmap</label>
+          <input id="editorFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/gif" />
+          <div class="btnrow" style="margin-top:9px">
+            <button id="editorFileInfoBtn" class="btn btn-secondary" type="button" disabled>File info</button>
+            <button id="editorClearBtn" class="btn btn-danger" type="button" disabled>Clear Image</button>
+          </div>
+        </div>
+        <div id="editorSourceStatus" class="panorama-info editor-source-status">Import a normal 2D bitmap. The source remains untouched; all processing is non-destructive.</div>
+        <div class="checkrow" style="margin-top:10px"><label for="editorNormalize2to1">Auto stretch working copy to 2:1</label><input id="editorNormalize2to1" type="checkbox" checked /></div>
+        <div class="note">The original import stays untouched. When enabled, Tab 3 first stretches a temporary working copy to a full 2:1 fit, preserving the complete top-to-bottom image so zenith and nadir are not generated from repeated/clamped strips. The front uses one large source image; the unseen rear hemisphere is split into two mirrored halves.</div>
+        <div class="note">The editor builds an estimated spherical environment from visible source content. A single photograph cannot recover the real unseen scene behind the camera.</div>
+      </section>
+
+      <section class="group">
+        <h3 class="editor-section-title">02 · Spherical Geometry</h3>
+        <div class="labelrow"><label for="editorHorizon">Horizon position</label><span id="editorHorizonValue" class="value">50.0%</span></div>
+        <input id="editorHorizon" type="range" min="0" max="100" step="0.1" value="50" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorHFov">Horizontal FOV</label><span id="editorHFovValue" class="value">90°</span></div>
+        <input id="editorHFov" type="range" min="30" max="180" step="1" value="90" />
+
+        <div class="checkrow" style="margin-top:7px"><label for="editorAutoVFov">Auto Vertical FOV</label><input id="editorAutoVFov" type="checkbox" checked /></div>
+        <div class="labelrow"><label for="editorVFov">Vertical FOV</label><span id="editorVFovValue" class="value">60°</span></div>
+        <input id="editorVFov" type="range" min="20" max="140" step="1" value="60" disabled />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorCurvature">Spherical curvature</label><span id="editorCurvatureValue" class="value">65%</span></div>
+        <input id="editorCurvature" type="range" min="0" max="100" step="1" value="65" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorCurvatureFalloff">Curvature falloff</label><span id="editorCurvatureFalloffValue" class="value">1.50</span></div>
+        <input id="editorCurvatureFalloff" type="range" min="0.25" max="4" step="0.05" value="1.5" />
+
+        <div style="height:10px"></div>
+        <div class="field">
+          <label for="editorHorizonShape">Horizon shape</label>
+          <select id="editorHorizonShape">
+            <option value="straight" selected>Straight Horizon</option>
+            <option value="soft">Soft Curved Horizon</option>
+            <option value="full">Full Spherical Horizon</option>
+          </select>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorPerspectiveExpansion">Perspective expansion</label><span id="editorPerspectiveExpansionValue" class="value">100%</span></div>
+        <input id="editorPerspectiveExpansion" type="range" min="0" max="200" step="1" value="100" />
+
+        <div style="height:10px"></div>
+        <div class="row2">
+          <div>
+            <div class="labelrow"><label for="editorCenterX">Optical center X</label><span id="editorCenterXValue" class="value">0%</span></div>
+            <input id="editorCenterX" type="range" min="-100" max="100" step="1" value="0" />
+          </div>
+          <div>
+            <div class="labelrow"><label for="editorCenterY">Optical center Y</label><span id="editorCenterYValue" class="value">0%</span></div>
+            <input id="editorCenterY" type="range" min="-100" max="100" step="1" value="0" />
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorProtectCenter">Protect center region</label><span id="editorProtectCenterValue" class="value">35%</span></div>
+        <input id="editorProtectCenter" type="range" min="0" max="80" step="1" value="35" />
+        <div class="editor-drag-help">Source 2D view: drag the white horizon line or optical-center marker directly on the preview.</div>
+      </section>
+
+      <section class="group">
+        <h3 class="editor-section-title">03 · 360 Coverage Expansion</h3>
+        <div class="field">
+          <label for="editorCoverageMethod">360 Coverage Method</label>
+          <select id="editorCoverageMethod" disabled>
+            <option value="mirror" selected>Mirror Extend (Fixed)</option>
+          </select>
+        </div>
+        <div class="note">Tab 3 now uses mirror-based side synthesis only. Because a single flat source has no real rear-camera view, the editor no longer pretends to generate unseen content with alternative coverage modes.</div>
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorCoverageWidth">Front source coverage width</label><span id="editorCoverageWidthValue" class="value">180°</span></div>
+        <input id="editorCoverageWidth" type="range" min="60" max="220" step="1" value="180" disabled />
+        <div class="note">With 2:1 Fit enabled, the front source occupies 180°. The remaining rear 180° is split into left 90° + right 90° mirrored continuations that meet at the rear seam.</div>
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorCoverageBalance">Coverage balance</label><span id="editorCoverageBalanceValue" class="value">Center</span></div>
+        <input id="editorCoverageBalance" type="range" min="-100" max="100" step="1" value="0" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorStructureProtection">Structure protection</label><span id="editorStructureProtectionValue" class="value">70%</span></div>
+        <input id="editorStructureProtection" type="range" min="0" max="100" step="1" value="70" />
+
+        <div style="height:10px"></div>
+        <div class="field">
+          <label for="editorTexturePriority">Texture priority</label>
+          <select id="editorTexturePriority">
+            <option value="smooth">Smooth Areas</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="edges">Preserve Edges</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="group">
+        <h3 class="editor-section-title">04 · Seam Reconstruction</h3>
+        <div class="checkrow"><label for="editorSeamEnabled">Seam blend enabled</label><input id="editorSeamEnabled" type="checkbox" checked /></div>
+        <div class="labelrow"><label for="editorBlendWidth">Blend width</label><span id="editorBlendWidthValue" class="value">10%</span></div>
+        <input id="editorBlendWidth" type="range" min="1" max="25" step="1" value="10" />
+        <div class="checkrow"><label for="editorColorMatch">Color match</label><input id="editorColorMatch" type="checkbox" checked /></div>
+        <div class="checkrow"><label for="editorLumaMatch">Luminance match</label><input id="editorLumaMatch" type="checkbox" checked /></div>
+        <div class="checkrow"><label for="editorGradientMatch">Gradient match</label><input id="editorGradientMatch" type="checkbox" checked /></div>
+        <div class="checkrow"><label for="editorMultiBand">Multi-band blend</label><input id="editorMultiBand" type="checkbox" checked /></div>
+        <div class="checkrow"><label for="editorTextureEqualization">Texture equalization</label><input id="editorTextureEqualization" type="checkbox" checked /></div>
+
+        <div style="height:8px"></div>
+        <div class="labelrow"><label for="editorSeamRotate">Seam rotate</label><span id="editorSeamRotateValue" class="value">0°</span></div>
+        <input id="editorSeamRotate" type="range" min="-180" max="180" step="1" value="0" />
+        <button id="editorAutoSeamBtn" class="btn btn-secondary btnwide" type="button" style="margin-top:9px">Auto Seam Finder</button>
+      </section>
+
+      <section class="group">
+        <h3 class="editor-section-title">05 · Zenith / Nadir Preparation</h3>
+        <div class="labelrow"><label for="editorZenithFill">Zenith fill strength</label><span id="editorZenithFillValue" class="value">30%</span></div>
+        <input id="editorZenithFill" type="range" min="0" max="100" step="1" value="30" />
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorNadirFill">Nadir fill strength</label><span id="editorNadirFillValue" class="value">30%</span></div>
+        <input id="editorNadirFill" type="range" min="0" max="100" step="1" value="30" />
+        <div class="note">In 2:1 Fit mode, pole preparation is intentionally restricted to a narrow cap so the source remains large and continuous instead of collapsing into stretched vertical strips. Tab 2 can still apply its final zenith / nadir repair.</div>
+      </section>
+
+      <section class="group">
+        <h3 class="editor-section-title">06 · HDR Radiance Reconstruction</h3>
+        <div class="field">
+          <label for="editorHdrPreset">HDR Reconstruction Style</label>
+          <select id="editorHdrPreset">
+            <option value="natural" selected>Natural HDR</option>
+            <option value="interior">Soft Interior</option>
+            <option value="outdoor">Outdoor Daylight</option>
+            <option value="high">High Dynamic</option>
+            <option value="neutral">Neutral Linear</option>
+          </select>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorExposure">Exposure</label><span id="editorExposureValue" class="value">0.0 EV</span></div>
+        <input id="editorExposure" type="range" min="-5" max="5" step="0.1" value="0" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorHighlight">Highlight expansion</label><span id="editorHighlightValue" class="value">35%</span></div>
+        <input id="editorHighlight" type="range" min="0" max="100" step="1" value="35" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorShadow">Shadow recovery</label><span id="editorShadowValue" class="value">15%</span></div>
+        <input id="editorShadow" type="range" min="0" max="100" step="1" value="15" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorHeadroom">Radiance headroom</label><span id="editorHeadroomValue" class="value">8 EV</span></div>
+        <input id="editorHeadroom" type="range" min="2" max="16" step="1" value="8" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorHighlightProtection">Highlight compression protection</label><span id="editorHighlightProtectionValue" class="value">65%</span></div>
+        <input id="editorHighlightProtection" type="range" min="0" max="100" step="1" value="65" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorTemperature">White balance temperature</label><span id="editorTemperatureValue" class="value">6500 K</span></div>
+        <input id="editorTemperature" type="range" min="2500" max="10000" step="100" value="6500" />
+
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="editorTint">White balance tint</label><span id="editorTintValue" class="value">0</span></div>
+        <input id="editorTint" type="range" min="-100" max="100" step="1" value="0" />
+        <div class="panorama-info" style="margin-top:10px"><strong>Estimated from LDR:</strong> ordinary bitmap input does not contain real captured highlight radiance. HDR/EXR output is a scene-linear estimate derived from the visible LDR source.</div>
+      </section>
+
+      <section class="group">
+        <h3 class="editor-section-title">07 · Preview & Diagnostics</h3>
+        <div class="field">
+          <label for="editorDiagnosticMode">Diagnostic display</label>
+          <select id="editorDiagnosticMode">
+            <option value="normal" selected>Normal Tone Map</option>
+            <option value="luminance">Luminance False Color</option>
+            <option value="clipping">Highlight Clipping</option>
+            <option value="synth">Synthesized Area</option>
+            <option value="seam">Seam Heatmap</option>
+            <option value="highlightMask">Highlight Source Mask</option>
+          </select>
+        </div>
+        <div class="checkrow" style="margin-top:8px"><label for="editorShowGrid">Lat / lon grid</label><input id="editorShowGrid" type="checkbox" checked /></div>
+        <div class="checkrow"><label for="editorShowCoverage">Show source coverage</label><input id="editorShowCoverage" type="checkbox" checked /></div>
+        <div class="note">Diagnostic overlays are preview-only and are never embedded into HDR, EXR, or PNG output.</div>
+        <button id="editorResetBtn" class="btn btn-secondary btnwide" type="button" style="margin-top:9px">Reset 2D → HDRI Editor</button>
+      </section>
+
+      <section class="group">
+        <h3 class="editor-section-title">08 · Validation & Output</h3>
+        <div id="editorValidationList" class="validation-list"></div>
+        <div class="row2" style="margin-top:10px">
+          <div class="field">
+            <label for="editorResolution">Master resolution</label>
+            <select id="editorResolution">
+              <option value="1024">1K · 1024 × 512</option>
+              <option value="2048" selected>2K · 2048 × 1024</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="editorFormat">Output</label>
+            <select id="editorFormat">
+              <option value="hdr" selected>Radiance HDR · estimated linear RGBE</option>
+              <option value="exr">OpenEXR · estimated linear HALF</option>
+              <option value="png">PNG · tone-mapped preview</option>
+            </select>
+          </div>
+        </div>
+        <div class="editor-output-actions">
+          <button id="editorSendBtn" class="btn btn-secondary" type="button">Send to 360 Panoramic</button>
+          <button id="editorExportBtn" class="btn btn-primary" type="button">Export from Editor</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="stage-column">
+      <div class="panel stage-panel">
+        <div class="stage-head">
+          <div>
+            <div class="editor-subtabs" role="tablist" aria-label="2D HDRI Editor preview">
+              <button id="editorViewSourceBtn" class="editor-subtab" type="button">Source 2D</button>
+              <button id="editorViewProjectedBtn" class="editor-subtab active" type="button">Projected 2:1</button>
+              <button id="editorView360Btn" class="editor-subtab" type="button">360 View</button>
+              <button id="editorViewLightingBtn" class="editor-subtab" type="button">Lighting Test</button>
+              <button id="editorViewSplitBtn" class="editor-subtab" type="button">Split Compare</button>
+            </div>
+            <button id="editorResetViewBtn" class="btn btn-secondary" type="button" style="margin-top:8px">Reset View</button>
+            <div id="editorViewHint" class="hint" style="margin-top:6px">Exact 2:1 spherical reconstruction preview · diagnostics are display-only</div>
+          </div>
+          <div id="editorRenderStatus" class="hint">No source loaded</div>
+        </div>
+        <div id="editorPreview">
+          <div id="editorFitBox" class="editor-fitbox">
+            <canvas id="editorCanvas" width="1280" height="640"></canvas>
+            <canvas id="editorOverlayCanvas" width="1280" height="640"></canvas>
+            <div id="editorEmptyState" class="empty-state">
+              <div><strong>Import a flat 2D image</strong>Set horizon and optical center, expand coverage to 360°, reconstruct the seam, then build estimated HDR radiance.</div>
+            </div>
+            <div id="editorBadge" class="editor-badge">2D → HDRI · Equirectangular 2:1</div>
+          </div>
+        </div>
+        <div class="editor-mini-status">
+          <span><strong>Geometry:</strong> perspective → sphere</span>
+          <span><strong>Coverage:</strong> adaptive 360° extension</span>
+          <span><strong>Radiance:</strong> estimated from LDR</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
   <footer>©2026 Ervin Faristiyanto. All rights reserved.</footer>
 </div>
 
@@ -1107,6 +1418,36 @@ const panoramaState = {
   textureHeight: 1
 };
 
+
+const editorState = {
+  image: null,
+  imageName: "",
+  fileMeta: null,
+  activeView: "projected",
+  renderTimer: 0,
+  finalTimer: 0,
+  sourceSample: null,
+  sourceSampleImage: null,
+  masterCanvas: null,
+  masterData: null,
+  masterMask: null,
+  masterSignature: "",
+  masterWidth: 0,
+  masterHeight: 0,
+  split: 0.5,
+  viewerYaw: 0,
+  viewerPitch: 0,
+  dragMode: "",
+  dragLastX: 0,
+  dragLastY: 0,
+  dragLastNX: 0,
+  dragLastNY: 0,
+  sourceRect: null,
+  synthesizedPercent: 0,
+  seamDelta: null,
+  exportPrepared: null
+};
+
 const uvCanvas = $("uvCanvas");
 const uvCtx = uvCanvas.getContext("2d", { alpha: true });
 const uvOverlayCanvas = $("uvOverlayCanvas");
@@ -1201,17 +1542,23 @@ function openPanoramaRendererAfterPaint(){
 }
 
 function setWorkspaceTab(mode){
+  if(!["spherical","panoramic","editor"].includes(mode))mode="spherical";
   const panoramic = mode === "panoramic";
-  state.activeWorkspace = panoramic ? "panoramic" : "spherical";
-  $("sphericalWorkspace").classList.toggle("active", !panoramic);
+  const editor = mode === "editor";
+  state.activeWorkspace = mode;
+  $("sphericalWorkspace").classList.toggle("active", mode==="spherical");
   $("panoramicWorkspace").classList.toggle("active", panoramic);
-  $("sphericalModeTab").classList.toggle("active", !panoramic);
+  $("hdrEditorWorkspace").classList.toggle("active", editor);
+  $("sphericalModeTab").classList.toggle("active", mode==="spherical");
   $("panoramicModeTab").classList.toggle("active", panoramic);
-  $("sphericalModeTab").setAttribute("aria-selected", panoramic ? "false" : "true");
+  $("hdrEditorModeTab").classList.toggle("active", editor);
+  $("sphericalModeTab").setAttribute("aria-selected", mode==="spherical" ? "true" : "false");
   $("panoramicModeTab").setAttribute("aria-selected", panoramic ? "true" : "false");
+  $("hdrEditorModeTab").setAttribute("aria-selected", editor ? "true" : "false");
+
   if (panoramic){
     cancelPanoramaPrewarm();
-    // If pre-warmed, the low preview can queue immediately; otherwise defer initialization until after paint.
+    clearTimeout(editorState.finalTimer);clearTimeout(editorState.renderTimer);editorState.renderTimer=0;
     if(panoramaState.ready){
       requestPanoramaRender("low");
       drawPanoramaOverlay();
@@ -1220,14 +1567,21 @@ function setWorkspaceTab(mode){
   } else {
     clearTimeout(panoramaState.finalTimer);clearTimeout(panoramaState.renderTimer);
     if(panoramaState.raf)cancelAnimationFrame(panoramaState.raf);panoramaState.raf=0;panoramaState.renderTimer=0;
-    resizeMercatorFitBox();
-    resizeEqualFitBox();
-    schedulePanoramaPrewarm(500);
+    if(mode==="spherical"){
+      resizeMercatorFitBox();
+      resizeEqualFitBox();
+      schedulePanoramaPrewarm(500);
+    }else{
+      cancelPanoramaPrewarm();
+      requestEditorRender("low");
+      scheduleEditorFinalRender();
+    }
   }
 }
 
 $("sphericalModeTab").addEventListener("click", () => setWorkspaceTab("spherical"));
 $("panoramicModeTab").addEventListener("click", () => setWorkspaceTab("panoramic"));
+$("hdrEditorModeTab").addEventListener("click", () => setWorkspaceTab("editor"));
 
 let modalConfirmHandler = null;
 function openModal(title, message, onConfirm = null, confirmLabel = "Confirm"){
@@ -4304,6 +4658,1047 @@ async function exportFrame(){
     gl.viewport(0,0,oldW,oldH);
   }
 }
+
+
+/* ---------- Tab 3 · 2D → HDRI Editor ---------- */
+const editorCanvas = $("editorCanvas");
+const editorCtx = editorCanvas.getContext("2d", {alpha:false, willReadFrequently:true});
+const editorOverlayCanvas = $("editorOverlayCanvas");
+const editorOverlayCtx = editorOverlayCanvas.getContext("2d");
+editorState.masterCanvas = document.createElement("canvas");
+editorState.masterCanvas.width = 1024;
+editorState.masterCanvas.height = 512;
+editorState.viewerFov = 90;
+editorState.coverageAuto = true;
+
+const EDITOR_GEOMETRY_IDS = [
+  "editorNormalize2to1","editorHorizon","editorHFov","editorVFov","editorCurvature","editorCurvatureFalloff",
+  "editorHorizonShape","editorPerspectiveExpansion","editorCenterX","editorCenterY","editorProtectCenter",
+  "editorCoverageMethod","editorCoverageWidth","editorCoverageBalance","editorStructureProtection","editorTexturePriority",
+  "editorSeamEnabled","editorBlendWidth","editorColorMatch","editorLumaMatch","editorGradientMatch","editorMultiBand",
+  "editorTextureEqualization","editorSeamRotate","editorZenithFill","editorNadirFill"
+];
+const EDITOR_HDR_IDS = [
+  "editorExposure","editorHighlight","editorShadow","editorHeadroom","editorHighlightProtection","editorTemperature","editorTint"
+];
+
+function editorClamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function editorLerp(a,b,t){return a+(b-a)*t;}
+function editorSmooth(t){t=editorClamp(t,0,1);return t*t*(3-2*t);}
+function editorWrapPi(a){while(a<=-Math.PI)a+=Math.PI*2;while(a>Math.PI)a-=Math.PI*2;return a;}
+function editorSrgbToLinear(v){v/=255;return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);}
+function editorLinearToSrgb(v){v=editorClamp(v,0,1);return Math.round((v<=0.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-0.055)*255);}
+function editorAces(v){return editorClamp((v*(2.51*v+0.03))/(v*(2.43*v+0.59)+0.14),0,1);}
+
+function editorSetCanvasSize(w,h){
+  if(editorCanvas.width!==w)editorCanvas.width=w;
+  if(editorCanvas.height!==h)editorCanvas.height=h;
+  if(editorOverlayCanvas.width!==w)editorOverlayCanvas.width=w;
+  if(editorOverlayCanvas.height!==h)editorOverlayCanvas.height=h;
+  $("editorFitBox").style.setProperty("--editor-ratio",w/h);
+}
+
+function editorGeometrySignature(){
+  const parts=[editorState.imageName||"none"];
+  for(const id of EDITOR_GEOMETRY_IDS){
+    const el=$(id);
+    parts.push(el.type==="checkbox"?(el.checked?1:0):el.value);
+  }
+  return parts.join("|");
+}
+
+function invalidateEditorGeometry(){
+  editorState.masterSignature="";
+  editorState.exportPrepared=null;
+}
+
+function ensureEditorSourceSample(){
+  if(!editorState.image)return null;
+  const normalize2to1=!!($("editorNormalize2to1")&&$("editorNormalize2to1").checked);
+  if(editorState.sourceSample && editorState.sourceSampleImage===editorState.image && editorState.sourceSampleNormalized===normalize2to1)return editorState.sourceSample;
+  const iw=editorState.image.naturalWidth||editorState.image.width||1;
+  const ih=editorState.image.naturalHeight||editorState.image.height||1;
+  const maxDim=2048;
+  let w,h;
+  if(normalize2to1){
+    const sc=Math.min(1,maxDim/Math.max(2*ih,ih));
+    h=Math.max(1,Math.round(ih*sc));
+    w=Math.max(1,Math.round(h*2));
+  }else{
+    const sc=Math.min(1,maxDim/Math.max(iw,ih));
+    w=Math.max(1,Math.round(iw*sc));
+    h=Math.max(1,Math.round(ih*sc));
+  }
+  const c=document.createElement("canvas");c.width=w;c.height=h;
+  const cx=c.getContext("2d",{willReadFrequently:true});
+  cx.drawImage(editorState.image,0,0,w,h);
+  editorState.sourceSample={canvas:c,data:cx.getImageData(0,0,w,h).data,width:w,height:h};
+  editorState.sourceSampleImage=editorState.image;
+  editorState.sourceSampleNormalized=normalize2to1;
+  return editorState.sourceSample;
+}
+
+function editorSampleBilinear(src,sw,sh,u,v,out,di){
+  u=editorClamp(u,0,1);v=editorClamp(v,0,1);
+  const fx=u*(sw-1),fy=v*(sh-1);
+  const x0=Math.floor(fx),y0=Math.floor(fy),x1=Math.min(sw-1,x0+1),y1=Math.min(sh-1,y0+1);
+  const tx=fx-x0,ty=fy-y0;
+  const i00=(y0*sw+x0)*4,i10=(y0*sw+x1)*4,i01=(y1*sw+x0)*4,i11=(y1*sw+x1)*4;
+  for(let c=0;c<3;c++){
+    const a=src[i00+c]*(1-tx)+src[i10+c]*tx;
+    const b=src[i01+c]*(1-tx)+src[i11+c]*tx;
+    out[di+c]=Math.round(a*(1-ty)+b*ty);
+  }
+  out[di+3]=255;
+}
+
+function editorAutoVerticalFov(){
+  if(!$("editorAutoVFov").checked)return;
+  const iw=editorState.image?(editorState.image.naturalWidth||editorState.image.width||16):16;
+  const ih=editorState.image?(editorState.image.naturalHeight||editorState.image.height||9):9;
+  const aspect=$("editorNormalize2to1")&&$("editorNormalize2to1").checked?2:Math.max(.1,iw/Math.max(1,ih));
+  const hf=editorClamp(Number($("editorHFov").value),30,179)*Math.PI/180;
+  const vf=2*Math.atan(Math.tan(hf/2)/aspect)*180/Math.PI;
+  $("editorVFov").value=editorClamp(Math.round(vf),20,140);
+  $("editorVFov").disabled=true;
+}
+
+function editorMapSyntheticLongitude(lon,bound,method,structure,texturePriority){
+  const sign=lon<0?-1:1,abs=Math.abs(lon);
+  const denom=Math.max(1e-5,Math.PI-bound);
+  const t=editorSmooth((abs-bound)/denom);
+  const soft=sign*bound*(1-0.78*t);
+  const q=abs/Math.max(1e-5,bound);
+  const phase=q%2;
+  const tri=phase<=1?phase:2-phase;
+  const mirror=sign*tri*bound;
+  let wrap=((lon+bound)%(2*bound)+2*bound)%(2*bound)-bound;
+  if(!Number.isFinite(wrap))wrap=0;
+  if(method==="soft")return soft;
+  if(method==="mirror")return mirror;
+  if(method==="wrap")return wrap;
+  let edgeWeight=structure/100;
+  if(texturePriority==="smooth")edgeWeight*=.45;
+  else if(texturePriority==="edges")edgeWeight=.55+.45*edgeWeight;
+  else edgeWeight=.25+.55*edgeWeight;
+  const hybrid=editorLerp(soft,mirror,editorClamp(edgeWeight,0,1));
+  return editorLerp(hybrid,wrap,0.12*(1-edgeWeight));
+}
+
+function editorMapFitMirrorLongitude(lon,frontHalf){
+  // One large source image spans the front hemisphere. The unseen rear is
+  // synthesized as exactly two mirrored halves, one from each source side.
+  frontHalf=editorClamp(frontHalf,Math.PI/6,Math.PI*.82);
+  const a=Math.abs(lon);
+  if(a<=frontHalf){
+    return {u:(lon/frontHalf+1)*.5,synth:false,rearT:0};
+  }
+  const t=editorClamp((a-frontHalf)/Math.max(1e-5,Math.PI-frontHalf),0,1);
+  // Left rear: source left edge -> source center. Right rear: right edge -> center.
+  // At ±180° both sides resolve to u=.5, so the periodic rear seam closes cleanly.
+  return {u:lon<0?editorLerp(0,.5,t):editorLerp(1,.5,t),synth:true,rearT:t};
+}
+
+function applyEditorSeam(data,w,h){
+  if(!$("editorSeamEnabled").checked)return;
+  const band=Math.max(1,Math.min(Math.floor(w*.24),Math.round(w*Number($("editorBlendWidth").value)/100)));
+  if(band<1)return;
+  const base=new Uint8ClampedArray(data);
+  let lMean=[0,0,0],rMean=[0,0,0],count=0;
+  const sampleStep=Math.max(1,Math.floor(h/128));
+  for(let y=0;y<h;y+=sampleStep){
+    for(let i=0;i<Math.min(band,8);i++){
+      const li=(y*w+i)*4,ri=(y*w+(w-1-i))*4;
+      for(let c=0;c<3;c++){lMean[c]+=base[li+c];rMean[c]+=base[ri+c];}
+      count++;
+    }
+  }
+  for(let c=0;c<3;c++){lMean[c]/=Math.max(1,count);rMean[c]/=Math.max(1,count);}
+  const useColor=$("editorColorMatch").checked,useLuma=$("editorLumaMatch").checked;
+  const useGradient=$("editorGradientMatch").checked,useMulti=$("editorMultiBand").checked,useTexture=$("editorTextureEqualization").checked;
+  const lLum=.2126*lMean[0]+.7152*lMean[1]+.0722*lMean[2];
+  const rLum=.2126*rMean[0]+.7152*rMean[1]+.0722*rMean[2];
+
+  for(let y=0;y<h;y++){
+    for(let i=0;i<band;i++){
+      const xl=i,xr=w-1-i,li=(y*w+xl)*4,ri=(y*w+xr)*4;
+      const inward=i/Math.max(1,band-1);
+      let t=.5*(1-editorSmooth(inward));
+      if(useGradient)t=Math.min(.62,t*1.12);
+      for(let c=0;c<3;c++){
+        let lv=base[li+c],rv=base[ri+c];
+        let lAdj=lv,rAdj=rv;
+        if(useColor){
+          const d=(lMean[c]-rMean[c])*.5;
+          lAdj=editorClamp(lv-d,0,255);rAdj=editorClamp(rv+d,0,255);
+        }
+        if(useLuma){
+          const dl=(lLum-rLum)*.22;
+          lAdj=editorClamp(lAdj-dl,0,255);rAdj=editorClamp(rAdj+dl,0,255);
+        }
+        if(useMulti){
+          const yn0=Math.max(0,y-2),yn1=Math.min(h-1,y+2);
+          let sumL=0,sumR=0,n=0;
+          for(let yy=yn0;yy<=yn1;yy++){sumL+=base[(yy*w+xl)*4+c];sumR+=base[(yy*w+xr)*4+c];n++;}
+          lAdj=editorLerp(lAdj,sumL/n,.18);rAdj=editorLerp(rAdj,sumR/n,.18);
+        }
+        let outL=editorLerp(lAdj,rAdj,t),outR=editorLerp(rAdj,lAdj,t);
+        if(useTexture && i<band*.55){
+          const li2=(y*w+Math.min(w-1,xl+1))*4+c,ri2=(y*w+Math.max(0,xr-1))*4+c;
+          outL=editorLerp(outL,(outL+base[li2])*.5,.08*(1-inward));
+          outR=editorLerp(outR,(outR+base[ri2])*.5,.08*(1-inward));
+        }
+        data[li+c]=Math.round(outL);data[ri+c]=Math.round(outR);
+      }
+      data[li+3]=data[ri+3]=255;
+    }
+  }
+}
+
+function applyEditorPolePrep(data,w,h){
+  const fitMode=!!($("editorNormalize2to1")&&$("editorNormalize2to1").checked);
+  const apply=(top,strength)=>{
+    strength=Number(strength)/100;if(strength<=0)return;
+    // 2:1 Fit already uses the entire vertical source. Keep pole stabilization narrow
+    // so zenith/nadir do not turn into broad averaged or vertically streaked bands.
+    const band=fitMode
+      ? Math.max(1,Math.round(h*(.012+.022*strength)))
+      : Math.max(1,Math.round(h*.12*strength));
+    const refY=top?Math.min(h-1,band):Math.max(0,h-1-band);
+    const mean=[0,0,0];
+    for(let x=0;x<w;x++){const i=(refY*w+x)*4;mean[0]+=data[i];mean[1]+=data[i+1];mean[2]+=data[i+2];}
+    mean[0]/=w;mean[1]/=w;mean[2]/=w;
+    for(let j=0;j<band;j++){
+      const y=top?j:h-1-j;
+      const edge=1-j/Math.max(1,band-1);
+      const f=fitMode?editorSmooth(edge)*strength*.52:editorSmooth(edge)*strength*.78;
+      const sampleY=top?Math.min(h-1,refY+Math.floor(j*.15)):Math.max(0,refY-Math.floor(j*.15));
+      for(let x=0;x<w;x++){
+        const i=(y*w+x)*4,s=(sampleY*w+x)*4;
+        for(let c=0;c<3;c++){
+          const continued=fitMode
+            ? editorLerp(data[s+c],mean[c],.20+.25*edge)
+            : editorLerp(data[s+c],mean[c],.55);
+          data[i+c]=Math.round(editorLerp(data[i+c],continued,f));
+        }
+      }
+    }
+  };
+  apply(true,$("editorZenithFill").value);
+  apply(false,$("editorNadirFill").value);
+}
+
+function computeEditorSeamDelta(data,w,h){
+  let sum=0,n=0,step=Math.max(1,Math.floor(h/256));
+  for(let y=0;y<h;y+=step){
+    const a=(y*w)*4,b=(y*w+w-1)*4;
+    sum+=(Math.abs(data[a]-data[b])+Math.abs(data[a+1]-data[b+1])+Math.abs(data[a+2]-data[b+2]))/(255*3);n++;
+  }
+  return sum/Math.max(1,n);
+}
+
+function buildEditorMaster(w,h,force=false){
+  if(!editorState.image)return null;
+  const sig=editorGeometrySignature();
+  if(!force && editorState.masterData && editorState.masterSignature===sig && editorState.masterWidth===w && editorState.masterHeight===h){
+    return {canvas:editorState.masterCanvas,data:editorState.masterData,mask:editorState.masterMask};
+  }
+  const sample=ensureEditorSourceSample();if(!sample)return null;
+  const out=new ImageData(w,h),d=out.data,mask=new Uint8Array(w*h);
+  const fit2to1=!!($("editorNormalize2to1")&&$("editorNormalize2to1").checked);
+  const hfov=editorClamp(Number($("editorHFov").value),30,179)*Math.PI/180;
+  const vfov=editorClamp(Number($("editorVFov").value),20,140)*Math.PI/180;
+  const curvature=Number($("editorCurvature").value)/100;
+  const falloff=Number($("editorCurvatureFalloff").value);
+  const expansion=.75+Number($("editorPerspectiveExpansion").value)/400;
+  const mapHFov=Math.min(179*Math.PI/180,hfov*expansion);
+  const mapVFov=Math.min(160*Math.PI/180,vfov*expansion);
+  const tanH=Math.max(.001,Math.tan(mapHFov/2)),tanV=Math.max(.001,Math.tan(mapVFov/2));
+  const horizon=Number($("editorHorizon").value)/100;
+  const cx=.5+Number($("editorCenterX").value)/200;
+  const cy=Number($("editorCenterY").value)/300;
+  const protect=Number($("editorProtectCenter").value)/100*.8;
+  const coverage=editorClamp(Number($("editorCoverageWidth").value),60,220)*Math.PI/180;
+  // In automatic 2:1 Fit, the visible source is intentionally one large 180° front.
+  // This leaves one rear hemisphere, split once into two mirrored 90° continuations.
+  const halfBase=fit2to1?Math.PI/2:Math.min(Math.PI*.96,coverage/2);
+  const balance=fit2to1?0:Number($("editorCoverageBalance").value)/100;
+  const method="mirror",structure=Number($("editorStructureProtection").value),texture=$("editorTexturePriority").value;
+  const seamRot=Number($("editorSeamRotate").value)*Math.PI/180;
+  const shape=$("editorHorizonShape").value;
+  let synthCount=0;
+
+  for(let y=0;y<h;y++){
+    const yn=(y+.5)/h;
+    const lat=(.5-yn)*Math.PI;
+    const latAbs=Math.abs(lat)/(Math.PI/2);
+    for(let x=0;x<w;x++){
+      let lon=editorWrapPi(((x+.5)/w-.5)*Math.PI*2+seamRot);
+      const di=(y*w+x)*4;
+
+      if(fit2to1){
+        // Vertical full-fit mapping: every row from source top to source bottom is used.
+        // Horizon position is changed with a piecewise remap that keeps v=0 and v=1 fixed,
+        // preventing the clamped/tan sampling that previously produced pole streaks.
+        const sourceH=editorClamp(horizon+cy,.025,.975);
+        let v=yn<=.5
+          ? sourceH*(yn/.5)
+          : sourceH+(1-sourceH)*((yn-.5)/.5);
+
+        const mapped=editorMapFitMirrorLongitude(lon,halfBase);
+        let u=mapped.u;
+        if(mapped.synth){mask[y*w+x]=255;synthCount++;}
+
+        // Keep the main image large. Spherical curvature is applied as a bounded horizontal
+        // redistribution on the front source only; it never sends zenith/nadir outside [0,1].
+        if(!mapped.synth){
+          let n=u*2-1;
+          const theta=editorClamp(mapHFov*.38,.18,1.18);
+          const perspective=Math.tan(n*theta)/Math.max(.001,Math.tan(theta));
+          const centerDist=Math.abs(n);
+          let curve=curvature*(.18+.32*Math.pow(editorClamp(latAbs,0,1),falloff));
+          if(protect>0 && centerDist<protect){const q=centerDist/Math.max(.001,protect);curve*=.15+.85*q*q;}
+          n=editorLerp(n,perspective,editorClamp(curve,0,.48));
+          u=.5+n*.5;
+        }
+
+        // Optical center X shifts the visible front but fades toward the rear seam,
+        // preserving the exact mirror closure at ±180°.
+        const centerShift=(cx-.5)*(mapped.synth?(1-mapped.rearT):1);
+        u=editorClamp(u+centerShift,0,1);
+
+        if(shape!=="straight"){
+          const amp=shape==="soft"?.018:.040;
+          const frontFactor=mapped.synth?.35:1;
+          const arch=(1-Math.cos(editorClamp((u-.5)*Math.PI*2,-Math.PI,Math.PI)))*.5;
+          v+=Math.sign(lat||1)*amp*arch*frontFactor*(.25+.75*latAbs);
+        }
+        editorSampleBilinear(sample.data,sample.width,sample.height,u,editorClamp(v,0,1),d,di);
+        continue;
+      }
+
+      // Legacy/manual non-fit path retained when 2:1 Fit is disabled.
+      const localHalf=editorClamp(halfBase*(lon<0?1-balance*.35:1+balance*.35),Math.PI/18,Math.PI*.96);
+      const synth=Math.abs(lon)>localHalf;
+      let mapLon=synth?editorMapSyntheticLongitude(lon,localHalf,method,structure,texture):lon;
+      if(synth){mask[y*w+x]=255;synthCount++;}
+      mapLon=editorClamp(mapLon,-Math.PI*.495,Math.PI*.495);
+
+      const nxLin=mapLon/Math.max(.001,mapHFov/2);
+      const nyLin=-lat/Math.max(.001,mapVFov/2);
+      const lonP=editorClamp(mapLon,-Math.PI*.494,Math.PI*.494);
+      const latP=editorClamp(lat,-Math.PI*.47,Math.PI*.47);
+      const nxPers=Math.tan(lonP)/tanH;
+      const nyPers=-Math.tan(latP)/(tanV*Math.max(.18,Math.cos(lonP)));
+      const centerDist=Math.min(1,Math.max(Math.abs(mapLon)/Math.max(.001,mapHFov/2),Math.abs(lat)/Math.max(.001,mapVFov/2)));
+      let curve=curvature*(.2+.8*Math.pow(editorClamp(latAbs,0,1),falloff));
+      if(protect>0 && centerDist<protect){const q=centerDist/protect;curve*=.18+.82*q*q;}
+      let nx=editorLerp(nxLin,nxPers,editorClamp(curve,0,1));
+      let ny=editorLerp(nyLin,nyPers,editorClamp(curve,0,1));
+      if(shape!=="straight"){
+        const amp=shape==="soft"?.045:.10;
+        ny+=amp*(1-Math.cos(mapLon))*Math.sign(lat||1)*(.35+.65*latAbs);
+      }
+      const u=cx+nx*.5;
+      const v=horizon+cy+ny*.5;
+      editorSampleBilinear(sample.data,sample.width,sample.height,u,v,d,di);
+    }
+  }
+
+  applyEditorSeam(d,w,h);
+  applyEditorPolePrep(d,w,h);
+
+  editorState.masterCanvas.width=w;editorState.masterCanvas.height=h;
+  editorState.masterCanvas.getContext("2d").putImageData(out,0,0);
+  editorState.masterData=d;
+  editorState.masterMask=mask;
+  editorState.masterSignature=sig;
+  editorState.masterWidth=w;editorState.masterHeight=h;
+  editorState.synthesizedPercent=synthCount/(w*h)*100;
+  editorState.seamDelta=computeEditorSeamDelta(d,w,h);
+  return {canvas:editorState.masterCanvas,data:d,mask};
+}
+
+function getEditorRadianceParams(){
+  return {
+    exposure:Number($("editorExposure").value),
+    highlight:Number($("editorHighlight").value)/100,
+    shadow:Number($("editorShadow").value)/100,
+    headroom:Number($("editorHeadroom").value),
+    protect:Number($("editorHighlightProtection").value)/100,
+    wb:kelvinToWhiteBalance(Number($("editorTemperature").value),Number($("editorTint").value))
+  };
+}
+
+function editorRadianceFromRgb(r8,g8,b8,p){
+  let r=editorSrgbToLinear(r8),g=editorSrgbToLinear(g8),b=editorSrgbToLinear(b8);
+  const exp=Math.pow(2,p.exposure);
+  r*=exp*p.wb[0];g*=exp*p.wb[1];b*=exp*p.wb[2];
+  let lum=.2126*r+.7152*g+.0722*b;
+  const h=editorSmooth((lum-.42)/.58);
+  const boostEv=p.headroom*p.highlight*h*(.35+.65*(1-p.protect));
+  const boost=Math.pow(2,boostEv);
+  r*=boost;g*=boost;b*=boost;
+  lum=.2126*r+.7152*g+.0722*b;
+  const shadowLift=1+p.shadow*(1-editorClamp(lum,0,1))*1.35;
+  r*=shadowLift;g*=shadowLift;b*=shadowLift;
+  return [Math.max(0,r),Math.max(0,g),Math.max(0,b),h];
+}
+
+function makeEditorDisplayCanvas(master,diagnosticOverride=null){
+  const w=master.canvas.width,h=master.canvas.height,data=master.data,mask=master.mask;
+  const c=document.createElement("canvas");c.width=w;c.height=h;
+  const ctx=c.getContext("2d"),img=ctx.createImageData(w,h),o=img.data;
+  const p=getEditorRadianceParams();
+  const mode=diagnosticOverride||$("editorDiagnosticMode").value;
+  for(let y=0;y<h;y++){
+    const seamProx=1-Math.min(1,Math.min(y+1,h-y)/Math.max(1,h*.5));
+    for(let x=0;x<w;x++){
+      const i=(y*w+x)*4;
+      const rad=editorRadianceFromRgb(data[i],data[i+1],data[i+2],p);
+      const r=rad[0],g=rad[1],b=rad[2],lum=.2126*r+.7152*g+.0722*b;
+      let rr,gg,bb;
+      if(mode==="luminance"){
+        const ev=editorClamp((Math.log2(Math.max(1e-5,lum))+8)/12,0,1);
+        if(ev<.25){rr=0;gg=Math.round(ev*4*160);bb=255;}
+        else if(ev<.5){const t=(ev-.25)*4;rr=0;gg=Math.round(160+95*t);bb=Math.round(255*(1-t));}
+        else if(ev<.75){const t=(ev-.5)*4;rr=Math.round(255*t);gg=255;bb=0;}
+        else{const t=(ev-.75)*4;rr=255;gg=Math.round(255*(1-t));bb=0;}
+      }else if(mode==="clipping"){
+        const clipped=Math.max(r,g,b)>1;
+        if(clipped){rr=255;gg=40;bb=210;}else{const q=editorAces(lum);rr=gg=bb=Math.round(Math.pow(q,1/2.2)*255);}
+      }else if(mode==="synth"){
+        const sr=Math.round(Math.pow(editorAces(r),1/2.2)*255),sg=Math.round(Math.pow(editorAces(g),1/2.2)*255),sb=Math.round(Math.pow(editorAces(b),1/2.2)*255);
+        if(mask[i/4]){rr=Math.round(sr*.55+255*.45);gg=Math.round(sg*.55+125*.45);bb=Math.round(sb*.55+35*.45);}
+        else{rr=sr;gg=sg;bb=sb;}
+      }else if(mode==="seam"){
+        const edgeDist=Math.min(x,w-1-x)/Math.max(1,w*.16);
+        const heat=1-editorClamp(edgeDist,0,1);
+        const q=editorAces(lum);
+        const base=Math.round(Math.pow(q,1/2.2)*255);
+        rr=Math.round(editorLerp(base,255,heat*.72));gg=Math.round(editorLerp(base,65,heat*.72));bb=Math.round(editorLerp(base,45,heat*.72));
+      }else if(mode==="highlightMask"){
+        const q=rad[3];rr=gg=bb=Math.round(25+230*q);
+      }else{
+        rr=Math.round(Math.pow(editorAces(r),1/2.2)*255);
+        gg=Math.round(Math.pow(editorAces(g),1/2.2)*255);
+        bb=Math.round(Math.pow(editorAces(b),1/2.2)*255);
+      }
+      o[i]=editorClamp(rr,0,255);o[i+1]=editorClamp(gg,0,255);o[i+2]=editorClamp(bb,0,255);o[i+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);return c;
+}
+
+function drawEditorSourceView(){
+  editorSetCanvasSize(1280,720);
+  editorCtx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--panel-2")||"#ddd";
+  editorCtx.fillRect(0,0,editorCanvas.width,editorCanvas.height);
+  if(!editorState.image)return;
+  const iw=editorState.image.naturalWidth||editorState.image.width||1,ih=editorState.image.naturalHeight||editorState.image.height||1;
+  const s=Math.min(editorCanvas.width/iw,editorCanvas.height/ih);
+  const w=iw*s,h=ih*s,x=(editorCanvas.width-w)/2,y=(editorCanvas.height-h)/2;
+  editorCtx.drawImage(editorState.image,x,y,w,h);
+  editorState.sourceRect={x,y,w,h};
+  $("editorBadge").textContent="Source 2D · drag horizon / optical center";
+}
+
+function drawEditorProjected(master){
+  editorSetCanvasSize(1280,640);
+  const display=makeEditorDisplayCanvas(master);
+  editorCtx.drawImage(display,0,0,editorCanvas.width,editorCanvas.height);
+  $("editorBadge").textContent="Projected 2:1 · 360° × 180°";
+}
+
+function editorSampleCanvasNearest(data,w,h,u,v){
+  u=((u%1)+1)%1;v=editorClamp(v,0,1);
+  const x=Math.min(w-1,Math.floor(u*w)),y=Math.min(h-1,Math.floor(v*h));
+  const i=(y*w+x)*4;return [data[i],data[i+1],data[i+2]];
+}
+
+function editorSampleCanvasBilinear(data,w,h,u,v){
+  u=((u%1)+1)%1;v=editorClamp(v,0,1);
+  const fx=u*w-.5,fy=v*h-.5;
+  const x0raw=Math.floor(fx),y0=Math.max(0,Math.min(h-1,Math.floor(fy)));
+  const tx=fx-Math.floor(fx),ty=fy-Math.floor(fy);
+  const x0=((x0raw%w)+w)%w,x1=(x0+1)%w,y1=Math.min(h-1,y0+1);
+  const i00=(y0*w+x0)*4,i10=(y0*w+x1)*4,i01=(y1*w+x0)*4,i11=(y1*w+x1)*4;
+  const rgb=[0,0,0];
+  for(let c=0;c<3;c++){
+    const a=data[i00+c]*(1-tx)+data[i10+c]*tx;
+    const b=data[i01+c]*(1-tx)+data[i11+c]*tx;
+    rgb[c]=Math.round(a*(1-ty)+b*ty);
+  }
+  return rgb;
+}
+
+function drawEditor360View(master,quality="full"){
+  const low=quality==="low";
+  const w=low?480:1280,h=low?270:720;
+  editorSetCanvasSize(w,h);
+  const src=makeEditorDisplayCanvas(master,"normal");
+  const sd=src.getContext("2d",{willReadFrequently:true}).getImageData(0,0,src.width,src.height).data,sw=src.width,sh=src.height;
+  const img=editorCtx.createImageData(w,h),o=img.data;
+  const fov=editorState.viewerFov*Math.PI/180,tan=Math.tan(fov/2),aspect=w/h;
+  const cy=Math.cos(editorState.viewerYaw),sy=Math.sin(editorState.viewerYaw),cp=Math.cos(editorState.viewerPitch),sp=Math.sin(editorState.viewerPitch);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    let dx=((x+.5)/w*2-1)*tan*aspect,dy=(1-(y+.5)/h*2)*tan,dz=1;
+    let len=Math.hypot(dx,dy,dz);dx/=len;dy/=len;dz/=len;
+    let py=dy*cp-dz*sp,pz=dy*sp+dz*cp;dy=py;dz=pz;
+    let px=dx*cy+dz*sy,pzz=-dx*sy+dz*cy;dx=px;dz=pzz;
+    const lon=Math.atan2(dx,dz),lat=Math.asin(editorClamp(dy,-1,1));
+    const rgb=editorSampleCanvasBilinear(sd,sw,sh,lon/(Math.PI*2)+.5,.5-lat/Math.PI);
+    const i=(y*w+x)*4;o[i]=rgb[0];o[i+1]=rgb[1];o[i+2]=rgb[2];o[i+3]=255;
+  }
+  editorCtx.putImageData(img,0,0);
+  $("editorBadge").textContent=`360 View · ${low?"Light":"Full"} · FOV ${Math.round(editorState.viewerFov)}°`;
+}
+
+function drawEditorLighting(master){
+  editorSetCanvasSize(1280,720);
+  const env=makeEditorDisplayCanvas(master,"normal");
+  editorCtx.drawImage(env,0,0,editorCanvas.width,editorCanvas.height);
+  editorCtx.fillStyle="rgba(0,0,0,.28)";editorCtx.fillRect(0,0,editorCanvas.width,editorCanvas.height);
+  const ed=env.getContext("2d",{willReadFrequently:true}).getImageData(0,0,env.width,env.height).data,ew=env.width,eh=env.height;
+
+  const sphere=(cx,cy,r,diffuse)=>{
+    const minX=Math.floor(cx-r),maxX=Math.ceil(cx+r),minY=Math.floor(cy-r),maxY=Math.ceil(cy+r);
+    const id=editorCtx.getImageData(minX,minY,maxX-minX,maxY-minY),od=id.data,ww=id.width;
+    for(let yy=0;yy<id.height;yy++)for(let xx=0;xx<id.width;xx++){
+      const nx=(xx+minX-cx)/r,ny=-(yy+minY-cy)/r,rr=nx*nx+ny*ny;if(rr>1)continue;
+      const nz=Math.sqrt(Math.max(0,1-rr));
+      let sx,sy,sz;
+      if(diffuse){sx=nx;sy=ny;sz=nz;}
+      else{const dot=nz;sx=2*dot*nx;sy=2*dot*ny;sz=2*dot*nz-1;}
+      const lon=Math.atan2(sx,sz),lat=Math.asin(editorClamp(sy,-1,1));
+      const rgb=editorSampleCanvasNearest(ed,ew,eh,lon/(Math.PI*2)+.5,.5-lat/Math.PI);
+      const i=(yy*ww+xx)*4;
+      if(diffuse){
+        const shade=.42+.58*nz;od[i]=rgb[0]*shade;od[i+1]=rgb[1]*shade;od[i+2]=rgb[2]*shade;
+      }else{od[i]=rgb[0];od[i+1]=rgb[1];od[i+2]=rgb[2];}
+      od[i+3]=255;
+    }
+    editorCtx.putImageData(id,minX,minY);
+    editorCtx.strokeStyle="rgba(255,255,255,.72)";editorCtx.lineWidth=2;editorCtx.beginPath();editorCtx.arc(cx,cy,r,0,Math.PI*2);editorCtx.stroke();
+  };
+  sphere(430,365,130,false);sphere(850,365,130,true);
+  editorCtx.fillStyle="rgba(0,0,0,.62)";editorCtx.fillRect(0,610,1280,110);
+  editorCtx.fillStyle="#fff";editorCtx.font="800 24px system-ui";editorCtx.textAlign="center";
+  editorCtx.fillText("CHROME · reflection continuity",430,664);editorCtx.fillText("DIFFUSE · broad lighting / color cast",850,664);
+  $("editorBadge").textContent="HDRI Lighting Test · estimated radiance preview";
+}
+
+function drawEditorSplit(master,quality="full"){
+  const low=quality==="low";
+  const w=low?640:2048,h=w/2;
+  editorSetCanvasSize(w,h);
+  const before=document.createElement("canvas");before.width=w;before.height=h;
+  const bx=before.getContext("2d");bx.imageSmoothingEnabled=true;bx.imageSmoothingQuality="high";bx.fillStyle="#1f2937";bx.fillRect(0,0,w,h);
+  if(editorState.image){
+    const iw=editorState.image.naturalWidth||1,ih=editorState.image.naturalHeight||1;
+    const s=Math.min(w/iw,h/ih),dw=iw*s,dh=ih*s;
+    bx.drawImage(editorState.image,(w-dw)/2,(h-dh)/2,dw,dh);
+  }
+  const after=makeEditorDisplayCanvas(master);
+  editorCtx.imageSmoothingEnabled=true;editorCtx.imageSmoothingQuality="high";
+  editorCtx.drawImage(after,0,0,w,h);
+  const split=Math.round(editorState.split*w);
+  editorCtx.save();editorCtx.beginPath();editorCtx.rect(0,0,split,h);editorCtx.clip();editorCtx.drawImage(before,0,0);editorCtx.restore();
+  $("editorBadge").textContent=`Split Compare · ${low?"Light":"Full"} · Before / After`;
+}
+
+function drawEditorOverlay(){
+  const ctx=editorOverlayCtx,w=editorOverlayCanvas.width,h=editorOverlayCanvas.height;
+  ctx.clearRect(0,0,w,h);
+  if(!editorState.image)return;
+  ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+  if(editorState.activeView==="source" && editorState.sourceRect){
+    const r=editorState.sourceRect;
+    const hy=r.y+r.h*Number($("editorHorizon").value)/100;
+    const ox=r.x+r.w*(.5+Number($("editorCenterX").value)/200);
+    const oy=r.y+r.h*(Number($("editorHorizon").value)/100+Number($("editorCenterY").value)/300);
+    ctx.strokeStyle="rgba(255,255,255,.96)";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r.x,hy);ctx.lineTo(r.x+r.w,hy);ctx.stroke();
+    ctx.fillStyle="rgba(255,255,255,.96)";ctx.font="800 15px system-ui";ctx.textAlign="left";ctx.fillText("HORIZON 0°",r.x+10,Math.max(r.y+20,hy-8));
+    ctx.strokeStyle="rgba(56,189,248,.96)";ctx.lineWidth=3;ctx.beginPath();ctx.arc(ox,oy,12,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(ox-20,oy);ctx.lineTo(ox+20,oy);ctx.moveTo(ox,oy-20);ctx.lineTo(ox,oy+20);ctx.stroke();
+    ctx.fillStyle="rgba(56,189,248,.98)";ctx.fillText("OPTICAL CENTER",Math.min(w-150,ox+18),Math.max(20,oy-16));
+  }else if(editorState.activeView==="projected" || editorState.activeView==="split"){
+    if($("editorShowGrid").checked){
+      ctx.lineWidth=1;ctx.strokeStyle="rgba(56,189,248,.52)";
+      for(let lon=-150;lon<=150;lon+=30){const x=(lon+180)/360*w;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+      ctx.strokeStyle="rgba(74,222,128,.52)";
+      for(let lat=-75;lat<=75;lat+=15){const y=(90-lat)/180*h;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+      ctx.strokeStyle="rgba(255,255,255,.92)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();
+    }
+    if($("editorShowCoverage").checked){
+      const cov=Number($("editorCoverageWidth").value),balance=Number($("editorCoverageBalance").value)/100;
+      const left=editorClamp(cov/2*(1-balance*.35),0,180),right=editorClamp(cov/2*(1+balance*.35),0,180);
+      ctx.strokeStyle="rgba(250,204,21,.96)";ctx.lineWidth=2;ctx.setLineDash([9,7]);
+      for(const lon of [-left,right]){const x=(lon+180)/360*w;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+      ctx.setLineDash([]);
+    }
+    ctx.strokeStyle="rgba(244,63,94,.96)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(1,0);ctx.lineTo(1,h);ctx.moveTo(w-1,0);ctx.lineTo(w-1,h);ctx.stroke();
+    if(editorState.activeView==="split"){
+      const x=editorState.split*w,ui=Math.max(1,w/1280);
+      ctx.strokeStyle="rgba(255,255,255,.98)";ctx.lineWidth=4*ui;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
+      ctx.fillStyle="rgba(0,0,0,.58)";ctx.fillRect(Math.max(0,x-45*ui),12*ui,90*ui,32*ui);ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font=`800 ${14*ui}px system-ui`;ctx.fillText("BEFORE | AFTER",x,33*ui);
+    }
+  }
+  ctx.restore();
+}
+
+function renderEditor(mode="full"){
+  if(state.activeWorkspace!=="editor")return;
+  if(!editorState.image){
+    editorSetCanvasSize(1280,640);editorCtx.clearRect(0,0,editorCanvas.width,editorCanvas.height);drawEditorOverlay();
+    $("editorRenderStatus").textContent="No source loaded";return;
+  }
+  const low=mode==="low";
+  editorState.interactive=low;
+  $("editorRenderStatus").textContent=low?"Light preview · editing…":"Rendering full preview…";
+  if(editorState.activeView==="source"){
+    drawEditorSourceView();drawEditorOverlay();
+    $("editorRenderStatus").textContent=`Source ${editorState.image.naturalWidth||editorState.image.width} × ${editorState.image.naturalHeight||editorState.image.height}`;
+    return;
+  }
+
+  // Keep editing responsive, then rebuild a higher-resolution master only after input settles.
+  let masterW=low?640:1024;
+  if(!low&&(editorState.activeView==="viewer"||editorState.activeView==="split"))masterW=2048;
+  const master=buildEditorMaster(masterW,masterW/2);
+  if(!master)return;
+
+  if(editorState.activeView==="viewer")drawEditor360View(master,low?"low":"full");
+  else if(editorState.activeView==="lighting")drawEditorLighting(master);
+  else if(editorState.activeView==="split")drawEditorSplit(master,low?"low":"full");
+  else drawEditorProjected(master);
+  drawEditorOverlay();
+  updateEditorValidation();
+
+  const viewLabel=editorState.activeView==="viewer"?"360 View":editorState.activeView==="split"?"Split Compare":editorState.activeView==="lighting"?"Lighting Test":"Projected 2:1";
+  $("editorRenderStatus").textContent=low
+    ? `Light · editing · ${editorCanvas.width} × ${editorCanvas.height}`
+    : `Full ${viewLabel} · ${editorCanvas.width} × ${editorCanvas.height} · master ${master.canvas.width} × ${master.canvas.height}`;
+}
+
+function requestEditorRender(mode="full"){
+  if(state.activeWorkspace!=="editor"||document.hidden)return;
+  editorState.renderMode=mode;
+  if(editorState.renderTimer||editorState.raf)return;
+  const delay=Math.max(0,34-(performance.now()-(editorState.lastRenderTime||0)));
+  editorState.renderTimer=setTimeout(()=>{
+    editorState.renderTimer=0;
+    if(document.hidden||state.activeWorkspace!=="editor")return;
+    editorState.raf=requestAnimationFrame(()=>{
+      editorState.raf=0;editorState.lastRenderTime=performance.now();
+      renderEditor(editorState.renderMode||"low");
+    });
+  },delay);
+}
+function scheduleEditorFinalRender(){
+  clearTimeout(editorState.finalTimer);
+  editorState.finalTimer=setTimeout(()=>requestEditorRender("full"),350);
+}
+
+function updateEditorSourceStatus(){
+  const box=$("editorSourceStatus");
+  if(!editorState.image){box.textContent="Import a normal 2D bitmap. The source remains untouched; all processing is non-destructive.";return;}
+  const w=editorState.image.naturalWidth||editorState.image.width||1,h=editorState.image.naturalHeight||editorState.image.height||1;
+  const ratio=w/h;
+  const norm=$("editorNormalize2to1")&&$("editorNormalize2to1").checked;
+  box.textContent=`${w} × ${h} · source aspect ${ratio.toFixed(3)}:1 · ${norm?"full-fit 2:1 working copy · front 180° source · rear 90° + 90° mirror":"working copy uses original source aspect"} · target master equirectangular 2:1`;
+}
+
+function updateEditorLabels(){
+  editorAutoVerticalFov();
+  const vals=[
+    ["editorHorizonValue",`${Number($("editorHorizon").value).toFixed(1)}%`],
+    ["editorHFovValue",`${$("editorHFov").value}°`],
+    ["editorVFovValue",`${$("editorVFov").value}°`],
+    ["editorCurvatureValue",`${$("editorCurvature").value}%`],
+    ["editorCurvatureFalloffValue",Number($("editorCurvatureFalloff").value).toFixed(2)],
+    ["editorPerspectiveExpansionValue",`${$("editorPerspectiveExpansion").value}%`],
+    ["editorCenterXValue",`${Number($("editorCenterX").value)>0?"+":""}${$("editorCenterX").value}%`],
+    ["editorCenterYValue",`${Number($("editorCenterY").value)>0?"+":""}${$("editorCenterY").value}%`],
+    ["editorProtectCenterValue",`${$("editorProtectCenter").value}%`],
+    ["editorCoverageWidthValue",`${$("editorCoverageWidth").value}°`],
+    ["editorStructureProtectionValue",`${$("editorStructureProtection").value}%`],
+    ["editorBlendWidthValue",`${$("editorBlendWidth").value}%`],
+    ["editorSeamRotateValue",`${Number($("editorSeamRotate").value)>0?"+":""}${$("editorSeamRotate").value}°`],
+    ["editorZenithFillValue",`${$("editorZenithFill").value}%`],
+    ["editorNadirFillValue",`${$("editorNadirFill").value}%`],
+    ["editorExposureValue",`${Number($("editorExposure").value).toFixed(1)} EV`],
+    ["editorHighlightValue",`${$("editorHighlight").value}%`],
+    ["editorShadowValue",`${$("editorShadow").value}%`],
+    ["editorHeadroomValue",`${$("editorHeadroom").value} EV`],
+    ["editorHighlightProtectionValue",`${$("editorHighlightProtection").value}%`],
+    ["editorTemperatureValue",`${$("editorTemperature").value} K`],
+    ["editorTintValue",`${Number($("editorTint").value)>0?"+":""}${$("editorTint").value}`]
+  ];
+  for(const [id,v] of vals)$(id).textContent=v;
+  const bal=Number($("editorCoverageBalance").value);
+  $("editorCoverageBalanceValue").textContent=bal===0?"Center":bal<0?`Left ${Math.abs(bal)}%`:`Right ${bal}%`;
+  $("editorVFov").disabled=$("editorAutoVFov").checked;
+  if($("editorNormalize2to1")){
+    $("editorCoverageWidth").disabled=$("editorNormalize2to1").checked;
+    if($("editorNormalize2to1").checked && Number($("editorCoverageWidth").value)!==180)$("editorCoverageWidth").value=180;
+  }
+  updateEditorSourceStatus();updateEditorValidation();
+}
+
+function updateEditorValidation(){
+  const root=$("editorValidationList");if(!root)return;
+  const rows=[];
+  rows.push(["Source",editorState.image?"LOADED":"NOT LOADED",editorState.image?"pass":"warn"]);
+  rows.push(["Master aspect ratio","2:1","pass"]);
+  rows.push(["Coordinate map","360° × 180°","pass"]);
+  if(editorState.image){
+    rows.push(["Synthesized coverage",`${editorState.synthesizedPercent.toFixed(1)}%`,editorState.synthesizedPercent<70?"pass":"warn"]);
+    if(editorState.seamDelta!=null)rows.push(["Horizontal seam",`${(editorState.seamDelta*100).toFixed(1)}% delta`,editorState.seamDelta<.08||$("editorSeamEnabled").checked?"pass":"warn"]);
+    rows.push(["Zenith / nadir",Number($("editorZenithFill").value)>0||Number($("editorNadirFill").value)>0?"PREPARATION ON":"CHECK MANUALLY",Number($("editorZenithFill").value)>0||Number($("editorNadirFill").value)>0?"pass":"warn"]);
+  }else{
+    rows.push(["Synthesized coverage","WAITING","warn"]);rows.push(["Horizontal seam","WAITING","warn"]);rows.push(["Zenith / nadir","WAITING","warn"]);
+  }
+  rows.push(["Radiance","ESTIMATED FROM LDR","warn"]);
+  rows.push(["HDR headroom",`${$("editorHeadroom").value} EV`,Number($("editorHeadroom").value)>=4?"pass":"warn"]);
+  const outW=Number($("editorResolution").value)||2048;rows.push(["Output resolution",`${outW} × ${outW/2}`,outW===2048?"pass":"warn"]);
+  root.innerHTML=rows.map(([a,b,c])=>`<div class="validation-row ${c}"><span>${a}</span><strong>${b}</strong></div>`).join("");
+}
+
+function setEditorView(mode){
+  if(!["source","projected","viewer","lighting","split"].includes(mode))mode="projected";
+  editorState.activeView=mode;
+  const map={source:"editorViewSourceBtn",projected:"editorViewProjectedBtn",viewer:"editorView360Btn",lighting:"editorViewLightingBtn",split:"editorViewSplitBtn"};
+  for(const [m,id] of Object.entries(map))$(id).classList.toggle("active",m===mode);
+  editorCanvas.classList.toggle("can-drag",["source","viewer","split"].includes(mode));
+  $("editorViewHint").textContent=mode==="source"
+    ?"Drag the horizon line or optical-center marker directly on the source image."
+    :mode==="viewer"?"Drag to look around · wheel to change viewer FOV."
+    :mode==="lighting"?"Chrome sphere checks reflection continuity · diffuse sphere checks broad lighting and color cast."
+    :mode==="split"?"Drag the vertical divider to compare the flat source against the reconstructed environment."
+    :"Exact 2:1 spherical reconstruction preview · diagnostics are display-only.";
+  requestEditorRender("full");
+}
+
+function applyEditorPreset(name){
+  const presets={
+    natural:{exposure:0,highlight:35,shadow:15,headroom:8,protect:65,temp:6500,tint:0},
+    interior:{exposure:.3,highlight:25,shadow:28,headroom:6,protect:78,temp:5200,tint:2},
+    outdoor:{exposure:0,highlight:48,shadow:10,headroom:10,protect:58,temp:6500,tint:0},
+    high:{exposure:-.2,highlight:72,shadow:35,headroom:12,protect:45,temp:6200,tint:0},
+    neutral:{exposure:0,highlight:0,shadow:0,headroom:4,protect:100,temp:6500,tint:0}
+  };
+  const p=presets[name]||presets.natural;
+  $("editorExposure").value=p.exposure;$("editorHighlight").value=p.highlight;$("editorShadow").value=p.shadow;
+  $("editorHeadroom").value=p.headroom;$("editorHighlightProtection").value=p.protect;$("editorTemperature").value=p.temp;$("editorTint").value=p.tint;
+  editorState.exportPrepared=null;updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();
+}
+
+function resetEditorParameters(){
+  const values={
+    editorHorizon:50,editorHFov:90,editorVFov:60,editorCurvature:65,editorCurvatureFalloff:1.5,
+    editorHorizonShape:"straight",editorPerspectiveExpansion:100,editorCenterX:0,editorCenterY:0,editorProtectCenter:35,
+    editorCoverageMethod:"mirror",editorCoverageWidth:180,editorCoverageBalance:0,editorStructureProtection:70,editorTexturePriority:"balanced",
+    editorBlendWidth:10,editorSeamRotate:0,editorZenithFill:30,editorNadirFill:30,editorHdrPreset:"natural",
+    editorExposure:0,editorHighlight:35,editorShadow:15,editorHeadroom:8,editorHighlightProtection:65,editorTemperature:6500,editorTint:0,
+    editorDiagnosticMode:"normal",editorResolution:2048,editorFormat:"hdr"
+  };
+  for(const [id,v] of Object.entries(values))$(id).value=v;
+  for(const id of ["editorNormalize2to1","editorAutoVFov","editorSeamEnabled","editorColorMatch","editorLumaMatch","editorGradientMatch","editorMultiBand","editorTextureEqualization","editorShowGrid","editorShowCoverage"])$(id).checked=true;
+  editorState.coverageAuto=true;editorState.split=.5;editorState.viewerYaw=0;editorState.viewerPitch=0;editorState.viewerFov=90;
+  invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();showToast("2D → HDRI Editor parameters reset");
+}
+
+function clearEditorImage(){
+  if(editorState.image&&editorState.image._objectUrl)URL.revokeObjectURL(editorState.image._objectUrl);
+  editorState.image=null;editorState.imageName="";editorState.fileMeta=null;editorState.sourceSample=null;editorState.sourceSampleImage=null;editorState.sourceSampleNormalized=null;
+  editorState.masterData=null;editorState.masterMask=null;editorState.masterSignature="";editorState.exportPrepared=null;editorState.synthesizedPercent=0;editorState.seamDelta=null;
+  $("editorFileInput").value="";$("editorFileInfoBtn").disabled=true;$("editorClearBtn").disabled=true;$("editorEmptyState").classList.remove("hidden");
+  updateEditorLabels();requestEditorRender("full");showToast("Tab 3 source cleared");
+}
+
+function loadEditorBitmapFile(file,input){
+  if(!file)return;
+  if(!file.type.startsWith("image/")){openModal("Unsupported file","Please choose a bitmap image such as PNG, JPG, WebP, BMP, or GIF.",null,"Close");if(input)input.value="";return;}
+  const url=URL.createObjectURL(file),img=new Image();img.decoding="async";
+  img.onload=()=>{
+    if(editorState.image&&editorState.image._objectUrl)URL.revokeObjectURL(editorState.image._objectUrl);
+    img._objectUrl=url;editorState.image=img;editorState.imageName=file.name;editorState.fileMeta={name:file.name,size:file.size,type:file.type||"unknown"};
+    editorState.sourceSample=null;editorState.sourceSampleImage=null;editorState.sourceSampleNormalized=null;editorState.coverageAuto=true;
+    $("editorCoverageWidth").value=$("editorNormalize2to1").checked?180:$("editorHFov").value;$("editorCoverageWidth").disabled=$("editorNormalize2to1").checked;editorAutoVerticalFov();invalidateEditorGeometry();
+    $("editorFileInfoBtn").disabled=false;$("editorClearBtn").disabled=false;$("editorEmptyState").classList.add("hidden");
+    updateEditorLabels();if(state.activeWorkspace==="editor"){requestEditorRender("low");scheduleEditorFinalRender();}
+    showToast(`Tab 3 loaded ${file.name}`);
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url);if(input)input.value="";openModal("Image load failed","The selected bitmap could not be decoded by this browser.",null,"Close");};
+  img.src=url;
+}
+
+function findEditorAutoSeam(){
+  if(!editorState.image){openModal("No image loaded","Import a flat 2D source before running Auto Seam Finder.",null,"Close");return;}
+  const master=buildEditorMaster(1024,512,true),d=master.data,w=master.canvas.width,h=master.canvas.height;
+  let bestX=0,best=Infinity;
+  const stepX=Math.max(8,Math.round(w/72)),stepY=Math.max(2,Math.round(h/160));
+  for(let x=stepX*2;x<w-stepX*2;x+=stepX){
+    let score=0,n=0;
+    const xa=(x-2+w)%w,xb=(x+2)%w;
+    for(let y=0;y<h;y+=stepY){
+      const a=(y*w+xa)*4,b=(y*w+xb)*4;
+      score+=Math.abs(d[a]-d[b])+Math.abs(d[a+1]-d[b+1])+Math.abs(d[a+2]-d[b+2]);n++;
+    }
+    score/=Math.max(1,n);
+    if(score<best){best=score;bestX=x;}
+  }
+  const current=Number($("editorSeamRotate").value);
+  let deg=current+bestX/w*360;while(deg>180)deg-=360;while(deg<-180)deg+=360;
+  $("editorSeamRotate").value=Math.round(deg);invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();
+  showToast(`Auto Seam Finder moved seam to ${Math.round(deg)}° · score ${best.toFixed(1)}`);
+}
+
+function editorPointerPosition(e){
+  const r=editorCanvas.getBoundingClientRect();
+  const nx=editorClamp((e.clientX-r.left)/Math.max(1,r.width),0,1);
+  const ny=editorClamp((e.clientY-r.top)/Math.max(1,r.height),0,1);
+  return {x:nx*editorCanvas.width,y:ny*editorCanvas.height,nx,ny};
+}
+editorCanvas.addEventListener("pointerdown",e=>{
+  if(!editorState.image)return;
+  clearTimeout(editorState.finalTimer);
+  const p=editorPointerPosition(e);
+  editorState.dragLastX=p.x;editorState.dragLastY=p.y;
+  editorState.dragLastNX=p.nx;editorState.dragLastNY=p.ny;
+  if(editorState.activeView==="source"&&editorState.sourceRect){
+    const r=editorState.sourceRect,hy=r.y+r.h*Number($("editorHorizon").value)/100;
+    const ox=r.x+r.w*(.5+Number($("editorCenterX").value)/200),oy=r.y+r.h*(Number($("editorHorizon").value)/100+Number($("editorCenterY").value)/300);
+    editorState.dragMode=Math.hypot(p.x-ox,p.y-oy)<34?"center":Math.abs(p.y-hy)<28?"horizon":"";
+  }else if(editorState.activeView==="viewer")editorState.dragMode="viewer";
+  else if(editorState.activeView==="split")editorState.dragMode="split";
+  if(editorState.dragMode){editorCanvas.setPointerCapture?.(e.pointerId);editorCanvas.classList.add("is-dragging");}
+});
+editorCanvas.addEventListener("pointermove",e=>{
+  if(!editorState.dragMode)return;
+  const p=editorPointerPosition(e);
+  if(editorState.dragMode==="viewer"){
+    // Use CSS-normalized pointer deltas so switching the canvas between low/full
+    // render resolutions during a drag cannot create a coordinate jump.
+    const dx=p.nx-editorState.dragLastNX,dy=p.ny-editorState.dragLastNY;
+    editorState.viewerYaw=editorWrapPi(editorState.viewerYaw+dx*Math.PI*1.8);
+    editorState.viewerPitch=editorClamp(editorState.viewerPitch-dy*Math.PI,-1.35,1.35);
+    requestEditorRender("low");clearTimeout(editorState.finalTimer);
+  }else if(editorState.dragMode==="split"){
+    editorState.split=editorClamp(p.nx,.05,.95);requestEditorRender("low");clearTimeout(editorState.finalTimer);
+  }else if(editorState.sourceRect){
+    const r=editorState.sourceRect;
+    if(editorState.dragMode==="horizon")$("editorHorizon").value=editorClamp((p.y-r.y)/r.h*100,0,100).toFixed(1);
+    else if(editorState.dragMode==="center"){
+      $("editorCenterX").value=Math.round(editorClamp(((p.x-r.x)/r.w-.5)*200,-100,100));
+      const horizon=Number($("editorHorizon").value)/100;
+      $("editorCenterY").value=Math.round(editorClamp(((p.y-r.y)/r.h-horizon)*300,-100,100));
+    }
+    invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();
+  }
+  editorState.dragLastX=p.x;editorState.dragLastY=p.y;
+  editorState.dragLastNX=p.nx;editorState.dragLastNY=p.ny;
+});
+function endEditorDrag(e){
+  const hadDrag=!!editorState.dragMode;
+  editorState.dragMode="";editorCanvas.classList.remove("is-dragging");
+  try{editorCanvas.releasePointerCapture?.(e.pointerId);}catch{}
+  if(hadDrag)scheduleEditorFinalRender();
+}
+editorCanvas.addEventListener("pointerup",endEditorDrag);editorCanvas.addEventListener("pointercancel",endEditorDrag);editorCanvas.addEventListener("lostpointercapture",endEditorDrag);
+editorCanvas.addEventListener("wheel",e=>{
+  if(editorState.activeView!=="viewer")return;e.preventDefault();
+  editorState.viewerFov=editorClamp(editorState.viewerFov*Math.exp(e.deltaY*.001),45,120);requestEditorRender("low");scheduleEditorFinalRender();
+},{passive:false});
+
+function floatRgbToRgbe(r,g,b,out,i){
+  const m=Math.max(r,g,b);
+  if(!(m>1e-32)){out[i]=out[i+1]=out[i+2]=out[i+3]=0;return;}
+  const e=Math.floor(Math.log2(m))+1,scale=256/Math.pow(2,e);
+  out[i]=editorClamp(Math.round(r*scale),0,255);out[i+1]=editorClamp(Math.round(g*scale),0,255);out[i+2]=editorClamp(Math.round(b*scale),0,255);out[i+3]=editorClamp(e+128,0,255);
+}
+
+async function buildEditorRgbe(ldr,w,h,params){
+  const rgbe=new Uint8Array(w*h*4);
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=(y*w+x)*4,rad=editorRadianceFromRgb(ldr[i],ldr[i+1],ldr[i+2],params);
+      floatRgbToRgbe(rad[0],rad[1],rad[2],rgbe,i);
+    }
+    if((y&63)===0){$("editorRenderStatus").textContent=`Building estimated linear radiance · ${Math.round(y/h*100)}%`;await new Promise(r=>setTimeout(r,0));}
+  }
+  if($("editorSeamEnabled").checked){
+    const band=Math.max(1,Math.min(Math.floor(w*.04),Math.round(w*Number($("editorBlendWidth").value)/400)));
+    for(let y=0;y<h;y++)for(let i=0;i<band;i++){
+      const li=(y*w+i)*4,ri=(y*w+w-1-i)*4,t=.5*(1-editorSmooth(i/Math.max(1,band-1)));
+      const a=decodeRgbePixel(rgbe[li],rgbe[li+1],rgbe[li+2],rgbe[li+3]),b=decodeRgbePixel(rgbe[ri],rgbe[ri+1],rgbe[ri+2],rgbe[ri+3]);
+      const l=[editorLerp(a[0],b[0],t),editorLerp(a[1],b[1],t),editorLerp(a[2],b[2],t)];
+      const r=[editorLerp(b[0],a[0],t),editorLerp(b[1],a[1],t),editorLerp(b[2],a[2],t)];
+      floatRgbToRgbe(l[0],l[1],l[2],rgbe,li);floatRgbToRgbe(r[0],r[1],r[2],rgbe,ri);
+    }
+  }
+  return rgbe;
+}
+
+function makeEditorToneMapFromRgbe(rgbe,w,h,maxW=1536){
+  const sc=Math.min(1,maxW/w),ow=Math.max(1,Math.round(w*sc)),oh=Math.max(1,Math.round(h*sc));
+  const c=document.createElement("canvas");c.width=ow;c.height=oh;const ctx=c.getContext("2d"),img=ctx.createImageData(ow,oh),d=img.data;
+  for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){
+    const sx=Math.min(w-1,Math.floor((x+.5)*w/ow)),sy=Math.min(h-1,Math.floor((y+.5)*h/oh)),si=(sy*w+sx)*4,di=(y*ow+x)*4;
+    const q=decodeRgbePixel(rgbe[si],rgbe[si+1],rgbe[si+2],rgbe[si+3]);
+    d[di]=Math.round(Math.pow(editorAces(q[0]),1/2.2)*255);d[di+1]=Math.round(Math.pow(editorAces(q[1]),1/2.2)*255);d[di+2]=Math.round(Math.pow(editorAces(q[2]),1/2.2)*255);d[di+3]=255;
+  }
+  ctx.putImageData(img,0,0);return c;
+}
+
+async function encodeEditorHdrBlob(rgbe,w,h){
+  const chunks=[];const header=`#?RADIANCE\n# Generated by Spherical Image Studio · 2D to HDRI Editor\n# Estimated scene-linear RGBE master reconstructed from an LDR bitmap\nFORMAT=32-bit_rle_rgbe\nEXPOSURE=1.000000\nGAMMA=1.000000\n\n-Y ${h} +X ${w}\n`;
+  chunks.push(new TextEncoder().encode(header));
+  for(let y=0;y<h;y++){
+    const row=rgbe.subarray(y*w*4,(y+1)*w*4),enc=encodeHdrScanline(row,w);
+    if(Array.isArray(enc))chunks.push(...enc);else chunks.push(enc);
+    if((y&63)===0){$("editorRenderStatus").textContent=`Encoding Radiance HDR · ${Math.round(y/h*100)}%`;await new Promise(r=>setTimeout(r,0));}
+  }
+  return new Blob(chunks,{type:"image/vnd.radiance"});
+}
+
+async function encodeEditorExrBlob(rgbe,w,h){
+  const header=makeOpenExrHeader(w,h),rowDataSize=w*3*2,chunkSize=8+rowDataSize,offsetTable=new Uint8Array(h*8),odv=new DataView(offsetTable.buffer);
+  let chunkOffset=header.length+offsetTable.length;
+  for(let y=0;y<h;y++){writeExrOffset64(odv,y*8,chunkOffset);chunkOffset+=chunkSize;}
+  const chunks=[header,offsetTable];
+  for(let y=0;y<h;y++){
+    const chunk=new Uint8Array(chunkSize),dv=new DataView(chunk.buffer);dv.setInt32(0,y,true);dv.setUint32(4,rowDataSize,true);
+    const rBase=8,gBase=8+w*2,bBase=8+w*4;
+    for(let x=0;x<w;x++){
+      const i=(y*w+x)*4,c=decodeRgbePixel(rgbe[i],rgbe[i+1],rgbe[i+2],rgbe[i+3]);
+      dv.setUint16(rBase+x*2,floatToHalfBits(c[0]),true);dv.setUint16(gBase+x*2,floatToHalfBits(c[1]),true);dv.setUint16(bBase+x*2,floatToHalfBits(c[2]),true);
+    }
+    chunks.push(chunk);
+    if((y&31)===0){$("editorRenderStatus").textContent=`Encoding OpenEXR HALF · ${Math.round(y/h*100)}%`;await new Promise(r=>setTimeout(r,0));}
+  }
+  return new Blob(chunks,{type:"image/x-exr"});
+}
+
+function downloadEditorBlob(blob,filename){
+  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1800);
+}
+
+async function prepareEditorExport(){
+  if(!editorState.image)throw new Error("Import a flat 2D source before exporting.");
+  const w=Number($("editorResolution").value)||2048,h=w/2,fmt=$("editorFormat").value;
+  $("editorRenderStatus").textContent=`Preparing ${w} × ${h} master…`;
+  await new Promise(r=>requestAnimationFrame(r));
+  const master=buildEditorMaster(w,h,true);
+  const params=getEditorRadianceParams();
+  const rgbe=await buildEditorRgbe(master.data,w,h,params);
+  const preview=makeEditorToneMapFromRgbe(rgbe,w,h,1536);
+  editorState.exportPrepared={w,h,fmt,rgbe,preview};
+  return editorState.exportPrepared;
+}
+
+async function exportEditorPrepared(){
+  const p=editorState.exportPrepared;if(!p)return;
+  const stem=(editorState.imageName||"environment").replace(/\.[^.]+$/,"").replace(/[^\w\-]+/g,"_");
+  let blob,ext;
+  if(p.fmt==="hdr"){blob=await encodeEditorHdrBlob(p.rgbe,p.w,p.h);ext="hdr";}
+  else if(p.fmt==="exr"){blob=await encodeEditorExrBlob(p.rgbe,p.w,p.h);ext="exr";}
+  else{blob=await canvasToBlob(p.preview,"image/png");ext="png";}
+  const filename=`${stem}_2D_to_HDRI_${p.w}x${p.h}.${ext}`;downloadEditorBlob(blob,filename);$("editorRenderStatus").textContent=`Ready · ${filename}`;showToast(`Exported ${filename}`);
+}
+
+async function openEditorExportPreview(){
+  if(!editorState.image){openModal("No image loaded","Import a flat 2D source before exporting.",null,"Close");return;}
+  await withBusyButton($("editorExportBtn"),"Preparing Preview…",async()=>{
+    try{
+      const p=await prepareEditorExport(),previewBlob=await canvasToBlob(p.preview,"image/png"),url=URL.createObjectURL(previewBlob);
+      const label=p.fmt==="hdr"?"Radiance RGBE .hdr":p.fmt==="exr"?"OpenEXR HALF RGB .exr":"PNG tone-mapped reference";
+      const message=p.fmt==="png"
+        ?"Review the tone-mapped editor output before generating the PNG reference file."
+        :"Review this tone-mapped display preview. The final HDR/EXR file remains scene-linear and is labelled as estimated from the LDR source.";
+      const meta=`Final export: ${p.w} × ${p.h} · exact 2:1 · ${label} · adaptive spherical extension · seam reconstruction · estimated radiance from LDR · diagnostics excluded.`;
+      openExportPreview("2D → HDRI Editor Export Preview",message,url,meta,exportEditorPrepared,p.fmt==="hdr"?"Generate Final .HDR":p.fmt==="exr"?"Generate Final .EXR":"Generate Final PNG");
+    }catch(err){openModal("Editor export failed",String(err?.message||err),null,"Close");}
+  });
+}
+
+async function sendEditorToPanorama(){
+  if(!editorState.image){openModal("No image loaded","Import and prepare a flat 2D source before sending it to 360 Panoramic.",null,"Close");return;}
+  await withBusyButton($("editorSendBtn"),"Building Linear Master…",async()=>{
+    try{
+      const w=Number($("editorResolution").value)||2048,h=w/2,master=buildEditorMaster(w,h,true),params=getEditorRadianceParams();
+      const rgbe=await buildEditorRgbe(master.data,w,h,params),preview=makeEditorToneMapFromRgbe(rgbe,w,h,1536),blob=await canvasToBlob(preview,"image/png"),url=URL.createObjectURL(blob),img=new Image();
+      img.decoding="async";
+      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+      revokeImageObjectUrl(panoramaState.image);img._objectUrl=url;panoramaState.image=img;
+      const stem=(editorState.imageName||"environment").replace(/\.[^.]+$/,"");
+      panoramaState.imageName=`${stem}_HDRI_Editor.hdr`;
+      panoramaState.radianceSource={width:w,height:h,rgbe,format:"hdr",radianceFormat:"RGBE · HDRI Editor estimated linear radiance",compression:"generated from Tab 3"};
+      panoramaState.lastHdrExrImportInfo="";
+      panoramaState.textureDirty=true;$("panoHdrFileInput").value="";$("panoHdrInfoBtn").disabled=true;$("panoramaClearBtn").disabled=false;$("panoramaEmptyState").classList.add("hidden");
+      analyzePanoramaSourceSeam();updatePanoramaSourceStatus();updatePanoramaValidation();
+      setWorkspaceTab("panoramic");requestPanoramaRender("low");schedulePanoramaFinalRender();
+      showToast(`Sent ${w} × ${h} estimated linear HDRI master to 360 Panoramic`);
+    }catch(err){openModal("Send to 360 Panoramic failed",String(err?.message||err),null,"Close");}
+  });
+}
+
+$("editorFileInput").addEventListener("change",e=>loadEditorBitmapFile(e.target.files&&e.target.files[0],e.target));
+$("editorFileInfoBtn").addEventListener("click",()=>{
+  if(!editorState.image||!editorState.fileMeta)return;
+  const w=editorState.image.naturalWidth||editorState.image.width,h=editorState.image.naturalHeight||editorState.image.height,m=editorState.fileMeta;
+  const normalize=$("editorNormalize2to1")&&$("editorNormalize2to1").checked;
+  openModal("2D Source File Info",`File: ${m.name}
+Type: ${m.type}
+Size: ${(m.size/1048576).toFixed(m.size>=10485760?1:2)} MiB
+Resolution: ${w} × ${h}
+Aspect: ${(w/h).toFixed(3)}:1
+Interpretation: flat / perspective LDR bitmap
+Working copy: ${normalize?"auto-stretched to temporary 2:1 before spherical projection":"uses original source aspect"}
+Coverage method: one 180° front source + rear split into two mirrored 90° halves
+HDR output: estimated scene-linear radiance`,null,"Close");
+});
+$("editorClearBtn").addEventListener("click",()=>{if(editorState.image)openModal("Clear 2D → HDRI source?","This removes only the bitmap imported in Tab 3. Tab 1 and Tab 2 sources remain unchanged.",clearEditorImage,"Clear Image");});
+$("editorResetBtn").addEventListener("click",()=>openModal("Reset 2D → HDRI Editor?","Reset all Tab 3 projection, coverage, seam, pole, HDR, diagnostic, and output parameters while keeping the imported source image.",resetEditorParameters,"Reset Editor"));
+
+$("editorViewSourceBtn").addEventListener("click",()=>setEditorView("source"));
+$("editorViewProjectedBtn").addEventListener("click",()=>setEditorView("projected"));
+$("editorView360Btn").addEventListener("click",()=>setEditorView("viewer"));
+$("editorViewLightingBtn").addEventListener("click",()=>setEditorView("lighting"));
+$("editorViewSplitBtn").addEventListener("click",()=>setEditorView("split"));
+$("editorResetViewBtn").addEventListener("click",()=>{editorState.viewerYaw=0;editorState.viewerPitch=0;editorState.viewerFov=90;editorState.split=.5;requestEditorRender("full");showToast("Tab 3 preview view reset");});
+
+$("editorAutoVFov").addEventListener("change",()=>{editorAutoVerticalFov();invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();});
+$("editorNormalize2to1").addEventListener("change",()=>{editorState.sourceSample=null;editorState.sourceSampleImage=null;editorState.sourceSampleNormalized=null;$("editorCoverageMethod").value="mirror";if($("editorNormalize2to1").checked){$("editorCoverageWidth").value=180;$("editorCoverageWidth").disabled=true;editorState.coverageAuto=false;}else{$("editorCoverageWidth").disabled=false;$("editorCoverageWidth").value=$("editorHFov").value;editorState.coverageAuto=true;}editorAutoVerticalFov();invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();});
+$("editorHFov").addEventListener("input",()=>{if(!$("editorNormalize2to1").checked&&editorState.coverageAuto)$("editorCoverageWidth").value=$("editorHFov").value;editorAutoVerticalFov();invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();});
+$("editorCoverageWidth").addEventListener("input",()=>{if($("editorNormalize2to1").checked)return;editorState.coverageAuto=false;invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();});
+for(const id of EDITOR_GEOMETRY_IDS){
+  if(["editorHFov","editorCoverageWidth"].includes(id))continue;
+  $(id).addEventListener("input",()=>{invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();});
+  if($(id).tagName==="SELECT"||$(id).type==="checkbox")$(id).addEventListener("change",()=>{invalidateEditorGeometry();updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();});
+}
+for(const id of EDITOR_HDR_IDS)$(id).addEventListener("input",()=>{editorState.exportPrepared=null;updateEditorLabels();requestEditorRender("low");scheduleEditorFinalRender();});
+$("editorHdrPreset").addEventListener("change",()=>applyEditorPreset($("editorHdrPreset").value));
+$("editorDiagnosticMode").addEventListener("change",()=>requestEditorRender("full"));
+$("editorShowGrid").addEventListener("change",()=>requestEditorRender("full"));
+$("editorShowCoverage").addEventListener("change",()=>requestEditorRender("full"));
+$("editorResolution").addEventListener("change",()=>{editorState.exportPrepared=null;updateEditorValidation();});
+$("editorFormat").addEventListener("change",()=>{editorState.exportPrepared=null;});
+$("editorAutoSeamBtn").addEventListener("click",()=>withBusyButton($("editorAutoSeamBtn"),"Finding Seam…",async()=>{await new Promise(r=>requestAnimationFrame(r));findEditorAutoSeam();}));
+$("editorExportBtn").addEventListener("click",openEditorExportPreview);
+$("editorSendBtn").addEventListener("click",sendEditorToPanorama);
+
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){
+    clearTimeout(editorState.finalTimer);clearTimeout(editorState.renderTimer);editorState.renderTimer=0;
+    if(editorState.raf)cancelAnimationFrame(editorState.raf);editorState.raf=0;
+  }else if(state.activeWorkspace==="editor")requestEditorRender("full");
+});
+window.addEventListener("beforeunload",()=>{clearTimeout(editorState.renderTimer);clearTimeout(editorState.finalTimer);if(editorState.raf)cancelAnimationFrame(editorState.raf);if(editorState.image&&editorState.image._objectUrl)URL.revokeObjectURL(editorState.image._objectUrl);});
+
+updateEditorLabels();
+updateEditorValidation();
+
 
 window.addEventListener("beforeunload",()=>{
   cancelPanoramaPrewarm();
