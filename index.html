@@ -1,0 +1,4347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<title>Spherical Image Studio — Prototype Ver.</title>
+<style>
+  :root{
+    --bg:#f5f7fb;
+    --panel:#ffffff;
+    --panel-2:#eef2f7;
+    --text:#111827;
+    --muted:#4b5563;
+    --border:#cbd5e1;
+    --accent:#075985;
+    --accent-hover:#0c4a6e;
+    --accent-press:#082f49;
+    --accent-text:#ffffff;
+    --danger:#b91c1c;
+    --success:#166534;
+    --shadow:0 14px 38px rgba(15,23,42,.12);
+    --focus:#0ea5e9;
+    --checker-a:#d9dee7;
+    --checker-b:#f4f6f9;
+    --input:#ffffff;
+    --overlay:rgba(15,23,42,.42);
+  }
+
+  [data-theme="dark"]{
+    --bg:#0b1220;
+    --panel:#111827;
+    --panel-2:#182235;
+    --text:#f8fafc;
+    --muted:#cbd5e1;
+    --border:#42516a;
+    --accent:#38bdf8;
+    --accent-hover:#7dd3fc;
+    --accent-press:#0ea5e9;
+    --accent-text:#082f49;
+    --danger:#f87171;
+    --success:#4ade80;
+    --shadow:0 18px 50px rgba(0,0,0,.35);
+    --focus:#7dd3fc;
+    --checker-a:#273449;
+    --checker-b:#162033;
+    --input:#0f172a;
+    --overlay:rgba(0,0,0,.58);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  body{min-height:100vh}
+  button,input,select{font:inherit}
+  button,a,input,select{outline:none}
+  button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 38%, transparent);
+    border-color:var(--focus)!important;
+  }
+
+  .app{
+    width:min(1600px,100%);
+    margin:0 auto;
+    padding:18px clamp(14px,2vw,28px) 24px;
+  }
+
+  .topbar{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:16px;
+  }
+
+  .brand h1{
+    margin:0;
+    font-size:clamp(1.45rem,2.2vw,2.3rem);
+    letter-spacing:-.035em;
+    line-height:1.08;
+  }
+  .subtitle{
+    margin:8px 0 0;
+    max-width:860px;
+    color:var(--muted);
+    line-height:1.55;
+    font-size:.96rem;
+  }
+  .creator{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:9px;
+    font-size:.9rem;
+    color:var(--muted);
+  }
+  .creator a{
+    color:var(--accent);
+    font-weight:800;
+    text-decoration:none;
+    border-bottom:1px solid transparent;
+  }
+  .creator a:hover{border-bottom-color:currentColor}
+
+  .header-actions{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:10px;
+    flex-wrap:wrap;
+    min-width:max-content;
+  }
+
+  .status-pill,.engine-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    min-height:34px;
+    padding:7px 10px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    background:var(--panel);
+    font-size:.8rem;
+    font-weight:800;
+    box-shadow:0 4px 16px rgba(15,23,42,.06);
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+  .status-pill.online .dot{background:var(--success);box-shadow:0 0 0 4px color-mix(in srgb,var(--success) 15%,transparent)}
+  .status-pill.offline .dot{background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 14%,transparent)}
+  .engine-pill.ready .dot{background:var(--success)}
+  .engine-pill.error .dot{background:var(--danger)}
+
+  .switch{
+    display:inline-flex;
+    align-items:center;
+    gap:9px;
+    user-select:none;
+    padding:7px 10px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    border-radius:999px;
+    cursor:pointer;
+    min-height:34px;
+  }
+  .switch input{position:absolute;opacity:0;pointer-events:none}
+  .track{
+    position:relative;
+    width:38px;height:21px;border-radius:999px;
+    background:var(--border);
+    transition:.2s ease;
+  }
+  .track::after{
+    content:"";
+    position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);
+    transition:.2s ease;
+  }
+  .switch input:checked + .track{background:var(--accent)}
+  .switch input:checked + .track::after{transform:translateX(17px)}
+  .switch span:last-child{font-size:.82rem;font-weight:800;color:var(--text)}
+
+  .workspace{
+    display:grid;
+    grid-template-columns:minmax(275px,340px) minmax(0,1fr);
+    gap:16px;
+    align-items:start;
+  }
+
+  .mode-tabs{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:0 0 16px;
+    padding:6px;
+    width:max-content;
+    max-width:100%;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:var(--panel);
+    box-shadow:0 8px 24px rgba(15,23,42,.07);
+  }
+  .mode-tab{
+    appearance:none;
+    border:1px solid transparent;
+    border-radius:10px;
+    padding:10px 14px;
+    background:transparent;
+    color:var(--muted);
+    font-weight:900;
+    cursor:pointer;
+    transition:background .16s ease,color .16s ease,border-color .16s ease,transform .16s ease;
+  }
+  .mode-tab:hover{color:var(--text);border-color:var(--border);transform:translateY(-1px)}
+  .mode-tab.active{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+  .app-view{display:none}
+  .app-view.active{display:grid}
+
+  #panoramaView{
+    min-height:540px;
+    height:clamp(540px,62vh,720px);
+    padding:18px;
+    background:var(--panel-2);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .panorama-fitbox{
+    position:relative;
+    width:100%;
+    max-width:100%;
+    aspect-ratio:2/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--border);
+    border-radius:12px;
+    overflow:hidden;
+    background:var(--panel);
+    box-shadow:0 10px 28px rgba(15,23,42,.10);
+  }
+  #panoramaCanvas,#panoramaOverlayCanvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  #panoramaOverlayCanvas{pointer-events:none;z-index:3}
+  .panorama-badge{
+    position:absolute;
+    z-index:4;
+    right:10px;
+    bottom:10px;
+    padding:6px 9px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    background:color-mix(in srgb,var(--panel) 88%,transparent);
+    color:var(--muted);
+    font-size:.7rem;
+    font-weight:900;
+    backdrop-filter:blur(8px);
+  }
+  .panorama-info{
+    padding:11px 13px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--panel-2);
+    color:var(--muted);
+    font-size:.76rem;
+    line-height:1.55;
+  }
+  .panorama-info strong{color:var(--text)}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:18px;
+    box-shadow:var(--shadow);
+  }
+  .controls{
+    padding:15px;
+    position:sticky;
+    top:12px;
+  }
+  .panel-title{
+    margin:0 0 12px;
+    font-size:.93rem;
+    letter-spacing:.01em;
+  }
+  .group{
+    padding:13px 0;
+    border-top:1px solid var(--border);
+  }
+  .group:first-of-type{border-top:0;padding-top:0}
+  .labelrow{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px
+  }
+  label,.mini-label{font-size:.79rem;font-weight:800;color:var(--muted)}
+  .value{font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums}
+  .invalid-label{display:none;margin-top:6px;color:var(--danger);font-size:.74rem;font-weight:800;line-height:1.35}
+  .invalid-label.show{display:block}
+  input.input-invalid{border-color:var(--danger)!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--danger) 14%,transparent)}
+
+  input[type="file"]{
+    width:100%;
+    border:1px dashed var(--border);
+    border-radius:12px;
+    padding:10px;
+    background:var(--panel-2);
+    color:var(--text);
+  }
+  input[type="range"]{width:100%;accent-color:var(--accent)}
+  input[type="color"]{
+    width:44px;height:34px;padding:3px;border-radius:9px;border:1px solid var(--border);background:var(--input);cursor:pointer
+  }
+  select,input[type="number"]{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--input);
+    color:var(--text);
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .field{min-width:0}
+  .field label{display:block;margin-bottom:6px}
+
+  .btn{
+    appearance:none;
+    border:1px solid transparent;
+    border-radius:11px;
+    padding:10px 12px;
+    font-weight:800;
+    cursor:pointer;
+    transition:transform .16s ease,background .16s ease,border-color .16s ease,box-shadow .16s ease;
+    user-select:none;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn:active{transform:translateY(1px) scale(.99)}
+  .btn-primary{background:var(--accent);color:var(--accent-text)}
+  .btn-primary:hover{background:var(--accent-hover);box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 24%,transparent)}
+  .btn-primary:active{background:var(--accent-press)}
+  .btn-secondary{background:var(--panel-2);color:var(--text);border-color:var(--border)}
+  .btn-secondary:hover{border-color:var(--accent);background:color-mix(in srgb,var(--panel-2) 82%,var(--accent) 18%)}
+  .btn-danger{background:transparent;color:var(--danger);border-color:color-mix(in srgb,var(--danger) 55%,var(--border))}
+  .btn:disabled{opacity:.48;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+  input:disabled, select:disabled{opacity:.55;cursor:not-allowed}
+
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .btnwide{width:100%}
+
+  .stage-column{display:grid;gap:16px}
+  .stage-panel{overflow:hidden}
+  #panoramicWorkspace > .controls{position:static}
+  #panoramicWorkspace .pano-pipeline-status{margin-top:16px;overflow:visible}
+  #panoramicWorkspace .pano-pipeline-status .uv-head{flex-wrap:wrap}
+  #panoramicWorkspace .pano-pipeline-body{overflow:visible;max-height:none}
+  #panoramicWorkspace .stage-panel{display:flex;flex-direction:column;height:calc(100dvh - 24px);min-height:360px}
+  #panoramicWorkspace .stage-head{flex:0 0 auto}
+  #panoramicWorkspace #panoramaView{flex:1;min-height:0;height:auto;padding:8px;container-type:size}
+  #panoramicWorkspace #panoramaFitBox{width:min(100cqw,calc(100cqh * var(--pano-ratio,2)));aspect-ratio:var(--pano-ratio,2)}
+  #panoramicWorkspace #panoramaFitBox{max-width:100%;flex:none;margin:auto}
+  #panoramaCanvas{touch-action:none}
+  #panoramaCanvas.can-drag{cursor:grab}
+  #panoramaCanvas.is-dragging{cursor:grabbing}
+  @media (min-width:981px){
+    #panoramicWorkspace > .stage-column{position:sticky;top:12px;align-self:start;display:block}
+  }
+
+  .stage-head,.uv-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 14px;border-bottom:1px solid var(--border)
+  }
+  .stage-head h2,.uv-head h2{margin:0;font-size:.92rem}
+  .hint{font-size:.76rem;color:var(--muted)}
+  .preview-tabs{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .preview-tab{
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--text);
+    padding:8px 11px;
+    border-radius:10px;
+    font-size:.78rem;
+    font-weight:800;
+    cursor:pointer;
+    transition:transform .16s ease,background .16s ease,border-color .16s ease;
+  }
+  .preview-tab:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .preview-tab:active{transform:translateY(1px)}
+  .preview-tab.active{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+  #viewport{
+    position:relative;
+    min-height:540px;
+    height:clamp(540px,62vh,720px);
+    background:
+      radial-gradient(circle at 50% 44%, color-mix(in srgb,var(--panel-2) 80%,var(--accent) 20%) 0 16%, transparent 58%),
+      var(--panel-2);
+    overflow:hidden;
+    touch-action:none;
+  }
+  #viewport canvas{display:block;width:100%;height:100%}
+  #viewport.preview-hidden{display:none}
+  #mercatorView{
+    display:none;
+    min-height:540px;
+    height:clamp(540px,62vh,720px);
+    padding:18px;
+    background:var(--panel-2);
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  #mercatorView.active{display:flex}
+  .mercator-fitbox{
+    width:100%;
+    height:100%;
+    max-width:100%;
+    max-height:100%;
+    aspect-ratio:1/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #mercatorCanvas{
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:fill;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--panel);
+    box-shadow:0 10px 28px rgba(15,23,42,.10);
+  }
+  #equalView{
+    display:none;
+    min-height:540px;
+    height:clamp(540px,62vh,720px);
+    padding:18px;
+    background:var(--panel-2);
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  #equalView.active{display:flex}
+  .equal-fitbox{
+    width:100%;
+    height:100%;
+    max-width:100%;
+    max-height:100%;
+    aspect-ratio:2/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #equalCanvas{
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:fill;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--panel);
+    box-shadow:0 10px 28px rgba(15,23,42,.10);
+  }
+  .control-note{font-size:.76rem;color:var(--muted);line-height:1.55;margin-top:8px}
+  .empty-state{
+    position:absolute;inset:0;z-index:5;display:grid;place-items:center;padding:24px;text-align:center;
+    pointer-events:none;color:var(--muted)
+  }
+  .empty-state > div{
+    max-width:620px;
+    padding:14px 18px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:color-mix(in srgb,var(--panel) 88%,transparent);
+    backdrop-filter:blur(10px);
+    box-shadow:0 10px 30px rgba(15,23,42,.10);
+  }
+  .empty-state strong{display:block;color:var(--text);font-size:1rem;margin-bottom:5px}
+  .empty-state.hidden{display:none}
+
+  .viewport-badge{
+    position:absolute;
+    right:12px;bottom:12px;
+    padding:6px 9px;border-radius:999px;
+    background:color-mix(in srgb,var(--panel) 86%,transparent);
+    border:1px solid var(--border);
+    color:var(--muted);font-size:.72rem;font-weight:800;
+    backdrop-filter:blur(8px);
+  }
+
+  .uv-wrap{
+    position:relative;
+    aspect-ratio:2/1;
+    overflow:hidden;
+    background:
+      linear-gradient(45deg,var(--checker-a) 25%,transparent 25%) 0 0/20px 20px,
+      linear-gradient(-45deg,var(--checker-a) 25%,transparent 25%) 0 10px/20px 20px,
+      linear-gradient(45deg,transparent 75%,var(--checker-a) 75%) 10px -10px/20px 20px,
+      linear-gradient(-45deg,transparent 75%,var(--checker-a) 75%) -10px 0/20px 20px,
+      var(--checker-b);
+  }
+  #uvCanvas,#uvOverlayCanvas,#uvGridCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #uvOverlayCanvas{z-index:2;cursor:grab}
+  #uvOverlayCanvas.dragging{cursor:grabbing}
+  #uvGridCanvas{pointer-events:none;z-index:3}
+  .uv-footer{
+    display:flex;justify-content:space-between;gap:12px;padding:9px 14px;border-top:1px solid var(--border);font-size:.74rem;color:var(--muted)
+  }
+
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);
+    z-index:50;max-width:min(92vw,560px);
+    background:var(--text);color:var(--bg);
+    padding:10px 14px;border-radius:11px;opacity:0;pointer-events:none;
+    transition:.2s ease;font-weight:800;font-size:.82rem;
+    box-shadow:var(--shadow);
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .modal-backdrop{
+    position:fixed;inset:0;z-index:100;
+    display:none;align-items:center;justify-content:center;
+    padding:18px;background:var(--overlay);backdrop-filter:blur(9px);
+  }
+  .modal-backdrop.open{display:flex}
+  .modal{
+    width:min(92vw,460px);
+    max-height:min(86vh,700px);
+    overflow:auto;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:18px;
+    box-shadow:0 30px 90px rgba(0,0,0,.35);
+    padding:18px;
+  }
+  .modal h3{margin:0 0 8px;font-size:1.02rem}
+  .modal p{margin:0 0 16px;color:var(--muted);line-height:1.55;font-size:.88rem;white-space:pre-line}
+  .modal-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+
+  .export-preview-backdrop{
+    position:fixed;inset:0;z-index:130;
+    display:none;align-items:center;justify-content:center;
+    padding:18px;background:var(--overlay);backdrop-filter:blur(10px);
+  }
+  .export-preview-backdrop.open{display:flex}
+  .export-preview-modal{
+    width:min(94vw,1040px);
+    max-height:min(90vh,920px);
+    overflow:auto;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:20px;
+    box-shadow:0 32px 100px rgba(0,0,0,.38);
+    padding:18px;
+  }
+  .export-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}
+  .export-preview-head h3{margin:0;font-size:1.06rem}
+  .export-preview-head p{margin:6px 0 0;color:var(--muted);line-height:1.55;font-size:.88rem}
+  .export-preview-stage{
+    display:grid;place-items:center;
+    min-height:240px;
+    padding:14px;
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:var(--panel-2);
+    margin-bottom:12px;
+  }
+  #exportPreviewImage{
+    display:block;
+    max-width:100%;
+    max-height:min(62vh,620px);
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--panel);
+    box-shadow:0 10px 28px rgba(15,23,42,.10);
+    object-fit:contain;
+  }
+  .export-preview-meta{font-size:.82rem;color:var(--muted);line-height:1.6;margin-bottom:14px}
+
+  footer{
+    padding:20px 4px 2px;
+    text-align:center;
+    color:var(--muted);
+    font-size:.8rem;
+  }
+
+  .note{
+    font-size:.75rem;line-height:1.5;color:var(--muted);margin-top:8px
+  }
+  .checkrow{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:7px 0
+  }
+  .checkrow label{color:var(--text);font-weight:700}
+  .checkrow input{width:18px;height:18px;accent-color:var(--accent)}
+
+
+  .pano-section-title{margin:0 0 10px;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text)}
+  .pano-subtabs{display:flex;gap:7px;flex-wrap:wrap}
+  .pano-subtab{border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:8px 10px;border-radius:9px;font-size:.75rem;font-weight:850;cursor:pointer}
+  .pano-subtab.active{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+  .panorama-fitbox.viewer-mode{aspect-ratio:16/9}
+
+  .validation-list{display:grid;gap:7px}
+  .validation-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel-2);font-size:.75rem}
+  .validation-row strong{font-size:.72rem}
+  .validation-row.pass strong{color:var(--success)}
+  .validation-row.warn strong{color:#b45309}
+  [data-theme="dark"] .validation-row.warn strong{color:#fbbf24}
+  .pano-source-status{margin-top:9px}
+  .diag-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+  .diag-grid .checkrow{min-width:0}
+  .diag-grid .checkrow label{font-size:.75rem}
+
+  @media (max-width:980px){
+    .workspace{grid-template-columns:1fr}
+    .mode-tabs{width:100%}
+    .mode-tab{flex:1}
+    .controls{position:static}
+    #viewport{min-height:480px;height:clamp(480px,58vh,620px)}
+  }
+  @media (max-width:640px){
+    .app{padding:12px 10px 18px}
+    .topbar{flex-direction:column;align-items:stretch}
+    .header-actions{justify-content:flex-start;min-width:0}
+    .row2,.row3{grid-template-columns:1fr}
+    #viewport{min-height:400px;height:clamp(400px,54vh,520px)}
+    .stage-head,.uv-head{align-items:flex-start;flex-direction:column}
+    .btnrow{grid-template-columns:1fr}
+    .mode-tabs{flex-direction:column;align-items:stretch}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Spherical Image Studio — Prototype Ver.</h1>
+      <p class="subtitle">Work in two projection modes: Spherical Projection for the original mapping workflow, and 360 Panoramic for an industry-oriented 360° × 180° HDRI environment-map pipeline with spherical orientation correction, seam/pole integrity, linear radiance processing, diagnostic preview, validation, and exact 2:1 Radiance HDR export up to 2K.</p>
+      <div class="creator">
+        <span>Created by</span>
+        <a id="creatorLink" href="https://www.instagram.com/ervinf.dsg" target="_blank" rel="noopener noreferrer">@ervinf.dsg</a>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div id="engineStatus" class="engine-pill" aria-live="polite"><span class="dot"></span><span>3D engine loading</span></div>
+      <div id="netStatus" class="status-pill" aria-live="polite"><span class="dot"></span><span>Checking...</span></div>
+      <label class="switch" title="Toggle light/dark mode">
+        <input id="themeToggle" type="checkbox" />
+        <span class="track" aria-hidden="true"></span>
+        <span>Dark mode</span>
+      </label>
+    </div>
+  </header>
+
+  <nav class="mode-tabs" role="tablist" aria-label="Projection workspace">
+    <button id="sphericalModeTab" class="mode-tab active" type="button" role="tab" aria-selected="true">Spherical Projection</button>
+    <button id="panoramicModeTab" class="mode-tab" type="button" role="tab" aria-selected="false">360 Panoramic</button>
+  </nav>
+
+  <main id="sphericalWorkspace" class="workspace app-view active">
+    <aside class="panel controls">
+      <h2 class="panel-title">Sphere & UV Controls</h2>
+
+      <section class="group">
+        <div class="field">
+          <label for="fileInput">Import bitmap image</label>
+          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/gif" />
+          <button id="clearImportedImageBtn" class="btn btn-danger btnwide" type="button" disabled style="margin-top:9px">Clear Imported Image</button>
+        </div>
+        <div class="note">Tab 1 import is independent from 360 Panoramic. Runs directly from file:// with no server or CDN dependency; image fitting, native WebGL 3D rendering, orbit interaction, and frame export stay local in your browser.</div>
+      </section>
+
+      <section class="group">
+        <div class="field">
+          <label for="fitMode">UV fit mode</label>
+          <select id="fitMode">
+            <option value="cover" selected>Cover UV (recommended)</option>
+            <option value="stretch">Stretch to full UV</option>
+            <option value="contain">Contain inside UV</option>
+          </select>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="uvScale">Image scale</label><span id="uvScaleValue" class="value">100%</span></div>
+        <input id="uvScale" type="range" min="50" max="300" step="1" value="100" />
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="uvStretchX">Stretch width</label><span id="uvStretchXValue" class="value">100%</span></div>
+        <input id="uvStretchX" type="range" min="40" max="220" step="1" value="100" />
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="uvStretchY">Stretch height</label><span id="uvStretchYValue" class="value">100%</span></div>
+        <input id="uvStretchY" type="range" min="40" max="220" step="1" value="100" />
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="uvOffsetX">Horizontal offset</label><span id="uvOffsetXValue" class="value">0%</span></div>
+        <input id="uvOffsetX" type="range" min="-100" max="100" step="1" value="0" />
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="uvOffsetY">Vertical offset</label><span id="uvOffsetYValue" class="value">0%</span></div>
+        <input id="uvOffsetY" type="range" min="-100" max="100" step="1" value="0" />
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="uvRotation">UV rotation</label><span id="uvRotationValue" class="value">0°</span></div>
+        <input id="uvRotation" type="range" min="-180" max="180" step="1" value="0" />
+
+        <div class="checkrow" style="margin-top:10px">
+          <label for="blendSeam">Blend UV seam</label>
+          <input id="blendSeam" type="checkbox" checked />
+        </div>
+
+        <div class="labelrow"><label for="blendWidth">Seam blend width</label><span id="blendWidthValue" class="value">6%</span></div>
+        <input id="blendWidth" type="range" min="1" max="20" step="1" value="6" />
+
+        <div class="btnrow" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr">
+          <button id="resetUvBtn" class="btn btn-secondary" type="button">Reset UV</button>
+          <button id="centerUvBtn" class="btn btn-secondary" type="button">Center Image</button>
+          <button id="originalSizeBtn" class="btn btn-secondary" type="button">Original Size</button>
+        </div>
+      </section>
+
+      <section class="group">
+        <div class="row2">
+          <div class="field">
+            <label for="sphereColor">Sphere base color</label>
+            <input id="sphereColor" type="color" value="#ffffff" />
+          </div>
+          <div class="field">
+            <label for="sceneBg">Scene background</label>
+            <input id="sceneBg" type="color" value="#e7edf5" />
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="roughness">Roughness</label><span id="roughnessValue" class="value">70%</span></div>
+        <input id="roughness" type="range" min="0" max="100" step="1" value="70" />
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="lightStrength">Light strength</label><span id="lightStrengthValue" class="value">120%</span></div>
+        <input id="lightStrength" type="range" min="20" max="250" step="5" value="120" />
+
+        <div class="checkrow">
+          <label for="noLight">No Light</label>
+          <input id="noLight" type="checkbox" />
+        </div>
+
+        <div class="checkrow">
+          <label for="autoRotate">Auto rotate sphere</label>
+          <input id="autoRotate" type="checkbox" />
+        </div>
+        <div class="checkrow">
+          <label for="showGrid">Show UV grid</label>
+          <input id="showGrid" type="checkbox" checked />
+        </div>
+
+        <div class="checkrow">
+          <label for="showMercatorGrid">Mercator grid</label>
+          <input id="showMercatorGrid" type="checkbox" />
+        </div>
+
+        <div class="row2" id="mercatorGridSettings">
+          <div class="field">
+            <label for="mercatorGridThickness">Grid Thickness (px)</label>
+            <input id="mercatorGridThickness" type="number" min="1" max="5" step="0.5" value="2" />
+          </div>
+          <div class="field">
+            <label for="mercatorGridColor">Grid Color</label>
+            <input id="mercatorGridColor" type="color" value="#ffffff" />
+          </div>
+        </div>
+
+        <button id="resetViewBtn" class="btn btn-secondary btnwide" type="button" style="margin-top:8px">Reset Orbit View</button>
+      </section>
+
+
+      <section class="group">
+        <div class="row3">
+          <div class="field">
+            <label for="exportFormat">Format</label>
+            <select id="exportFormat">
+              <option value="image/png">PNG</option>
+              <option value="image/jpeg">JPG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="exportWidth">Width</label>
+            <input id="exportWidth" type="number" min="600" max="3000" step="1" value="1920" />
+            <div id="exportWidthInvalid" class="invalid-label">Invalid resolution: width must be 600–3000 px.</div>
+          </div>
+          <div class="field">
+            <label for="exportHeight">Height</label>
+            <input id="exportHeight" type="number" min="600" max="3000" step="1" value="1080" />
+            <div id="exportHeightInvalid" class="invalid-label">Invalid resolution: height must be 600–3000 px.</div>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="labelrow"><label for="exportQuality">Lossy quality</label><span id="exportQualityValue" class="value">92%</span></div>
+        <input id="exportQuality" type="range" min="50" max="100" step="1" value="92" />
+
+        <button id="exportBtn" class="btn btn-primary btnwide" type="button" style="margin-top:12px">Export Current Frame</button>
+      </section>
+    </aside>
+
+    <section class="stage-column">
+      <div class="panel stage-panel">
+        <div class="stage-head">
+          <div class="preview-tabs" role="tablist" aria-label="Projection preview">
+            <button id="sphereTabBtn" class="preview-tab active" type="button" role="tab" aria-selected="true">Interactive Sphere Preview</button>
+            <button id="mercatorTabBtn" class="preview-tab" type="button" role="tab" aria-selected="false">Mercator Projection</button>
+            <button id="equalTabBtn" class="preview-tab" type="button" role="tab" aria-selected="false">Equal Projection</button>
+          </div>
+          <div id="previewHint" class="hint">Drag to orbit · wheel/pinch to zoom · right-drag to pan</div>
+        </div>
+        <div id="viewport">
+          <div id="emptyState" class="empty-state">
+            <div>
+              <strong>Import a bitmap to begin</strong>
+              Your image will be converted into an equirectangular UV texture and wrapped around the sphere.
+            </div>
+          </div>
+          <div class="viewport-badge">Current orbit frame = export frame</div>
+        </div>
+        <div id="mercatorView">
+          <div id="mercatorFitBox" class="mercator-fitbox">
+            <canvas id="mercatorCanvas" width="2048" height="2048"></canvas>
+          </div>
+        </div>
+        <div id="equalView">
+          <div id="equalFitBox" class="equal-fitbox">
+            <canvas id="equalCanvas" width="2048" height="1024"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="uv-head">
+          <h2>2D UV Map Preview</h2>
+          <div class="hint">Equirectangular layout · click image to move, stretch, scale, or rotate · seam at left/right edge</div>
+        </div>
+        <div class="uv-wrap">
+          <canvas id="uvCanvas" width="2048" height="1024"></canvas>
+          <canvas id="uvOverlayCanvas" width="2048" height="1024"></canvas>
+          <canvas id="uvGridCanvas" width="2048" height="1024"></canvas>
+        </div>
+        <div class="uv-footer">
+          <span>Longitude: −180° → +180°</span>
+          <span>Latitude: +90° → −90°</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <main id="panoramicWorkspace" class="workspace app-view">
+    <aside class="panel controls">
+      <h2 class="panel-title">360 Panoramic · HDRI Environment Builder</h2>
+
+      <section class="group">
+        <h3 class="pano-section-title">01 · Source</h3>
+        <div class="field">
+          <label for="panoramaFileInput">Import / replace bitmap source</label>
+          <input id="panoramaFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/gif" />
+          <div style="height:10px"></div>
+          <label for="panoHdrFileInput">Open HDR / EXR file</label>
+          <input id="panoHdrFileInput" type="file" accept=".hdr,.exr,image/vnd.radiance,image/x-exr" />
+          <button id="panoHdrInfoBtn" class="btn btn-secondary btnwide" type="button" disabled style="margin-top:8px" title="Show information for the currently imported HDR / EXR file">File info</button>
+          <div class="note">Radiance .hdr and OpenEXR .exr are treated as editable linear-radiance sources. HDR import accepts RGBE or XYZE with modern RLE and legacy/raw scanlines. EXR import accepts OpenEXR file-format v2 single-part scanline or one-level tiled RGB/RGBA/Y files using HALF, FLOAT, or UINT channels with NONE, ZIP, ZIPS, or PIZ compression. Files created by newer OpenEXR software remain compatible when they use this standard v2 file format and supported features. Tone mapping is display-only.</div>
+          <button id="panoramaClearBtn" class="btn btn-danger btnwide" type="button" disabled style="margin-top:9px">Clear Imported Image</button>
+        </div>
+        <div style="height:10px"></div>
+        <div class="panorama-info"><strong>Source projection:</strong> Equirectangular 360° × 180° only. A 2:1 source is recommended for full spherical coverage.</div>
+        <div class="checkrow" style="margin-top:10px"><label for="panoFlipX">Flip imported image horizontally</label><input id="panoFlipX" type="checkbox" /></div>
+        <div class="checkrow"><label for="panoFlipY">Flip imported image vertically</label><input id="panoFlipY" type="checkbox" /></div>
+        <div class="note">The 360 pipeline now accepts equirectangular source mapping only. Browser-friendly preview stays lightweight while export uses the original source up to the graphics device limit.</div>
+        <div id="panoSourceStatus" class="panorama-info pano-source-status">Import an equirectangular 360° image, Radiance HDR, or OpenEXR file.</div>
+      </section>
+
+      <section class="group">
+        <h3 class="pano-section-title">02 · Spherical Geometry</h3>
+        <div class="labelrow"><label for="panoYaw">Heading / yaw</label><span id="panoYawValue" class="value">0°</span></div>
+        <input id="panoYaw" type="range" min="-180" max="180" step="0.5" value="0" />
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="panoPitch">Pitch correction</label><span id="panoPitchValue" class="value">0°</span></div>
+        <input id="panoPitch" type="range" min="-90" max="90" step="0.5" value="0" />
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="panoRoll">Roll / horizon correction</label><span id="panoRollValue" class="value">0°</span></div>
+        <input id="panoRoll" type="range" min="-45" max="45" step="0.25" value="0" />
+        <button id="panoLevelHorizonBtn" class="btn btn-secondary btnwide" type="button" style="margin-top:10px">Set Horizon Level · 0°</button>
+        <div class="note">The output coordinate system is always 360° × 180°. Pitch/roll corrections rotate the spherical environment; they do not use a 2D perspective warp.</div>
+      </section>
+
+      <section class="group">
+        <h3 class="pano-section-title">03 · Seam & Poles</h3>
+        <div class="checkrow"><label for="panoSeamEnabled">Periodic longitude seam correction</label><input id="panoSeamEnabled" type="checkbox" checked /></div>
+        <div class="labelrow"><label for="panoSeam">Seam correction width</label><span id="panoSeamValue" class="value">3%</span></div>
+        <input id="panoSeam" type="range" min="0" max="12" step="0.5" value="3" />
+        <div class="checkrow"><label for="panoColorContinuity">Color continuity</label><input id="panoColorContinuity" type="checkbox" checked /></div>
+        <div class="checkrow"><label for="panoLumaContinuity">Luminance continuity</label><input id="panoLumaContinuity" type="checkbox" checked /></div>
+        <div style="height:6px"></div>
+        <div class="labelrow"><label for="panoPoleRepair">Zenith / nadir repair</label><span id="panoPoleRepairValue" class="value">35%</span></div>
+        <input id="panoPoleRepair" type="range" min="0" max="100" step="1" value="35" />
+        <div class="note">Pole repair suppresses non-spherical pinching/tearing near ±90° latitude while preserving the normal equirectangular stretch.</div>
+      </section>
+
+      <section class="group">
+        <h3 class="pano-section-title">04 · HDR Radiance</h3>
+        <div class="labelrow"><label for="panoExposure">Environment exposure</label><span id="panoExposureValue" class="value">0.0 EV</span></div>
+        <input id="panoExposure" type="range" min="-5" max="5" step="0.1" value="0" />
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="panoTemperature">White balance temperature</label><span id="panoTemperatureValue" class="value">6500 K</span></div>
+        <input id="panoTemperature" type="range" min="2500" max="10000" step="100" value="6500" />
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="panoTint">White balance tint</label><span id="panoTintValue" class="value">0</span></div>
+        <input id="panoTint" type="range" min="-100" max="100" step="1" value="0" />
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="panoHighlightRecovery">Highlight recovery / expansion</label><span id="panoHighlightRecoveryValue" class="value">20%</span></div>
+        <input id="panoHighlightRecovery" type="range" min="0" max="100" step="1" value="20" />
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="panoShadowRecovery">Shadow recovery</label><span id="panoShadowRecoveryValue" class="value">10%</span></div>
+        <input id="panoShadowRecovery" type="range" min="0" max="100" step="1" value="10" />
+        <div style="height:10px"></div>
+        <div class="labelrow"><label for="panoHeadroom">Estimated radiance headroom</label><span id="panoHeadroomValue" class="value">8 EV</span></div>
+        <input id="panoHeadroom" type="range" min="2" max="16" step="1" value="8" />
+        <div class="panorama-info" style="margin-top:10px"><strong>Linear master:</strong> preview tone mapping is display-only. Radiance HDR and OpenEXR exports bypass display tone mapping. With ordinary PNG/JPG/WebP input, highlight radiance above the captured LDR range is estimated rather than physically measured.</div>
+      </section>
+
+      <section class="group">
+        <h3 class="pano-section-title">05 · Preview & Diagnostics</h3>
+        <div class="field">
+          <label for="panoDiagnosticMode">Diagnostic display</label>
+          <select id="panoDiagnosticMode">
+            <option value="none" selected>Normal preview</option>
+            <option value="luminance">Luminance false color</option>
+            <option value="clipping">Highlight clipping warning</option>
+          </select>
+        </div>
+        <div class="diag-grid" style="margin-top:7px">
+          <div class="checkrow"><label for="panoShowGrid">Lat / lon grid</label><input id="panoShowGrid" type="checkbox" checked /></div>
+          <div class="checkrow"><label for="panoShowHorizon">Horizon</label><input id="panoShowHorizon" type="checkbox" checked /></div>
+          <div class="checkrow"><label for="panoShowDirections">N / E / S / W</label><input id="panoShowDirections" type="checkbox" checked /></div>
+          <div class="checkrow"><label for="panoShowSeamGuide">Seam boundary</label><input id="panoShowSeamGuide" type="checkbox" checked /></div>
+          <div class="checkrow"><label for="panoShowPoles">Zenith / nadir</label><input id="panoShowPoles" type="checkbox" checked /></div>
+        </div>
+        <div class="note">All diagnostic elements are preview-only and are never embedded into the HDRI master.</div>
+        <button id="panoResetBtn" class="btn btn-secondary btnwide" type="button" style="margin-top:10px">Reset 360 Panoramic</button>
+      </section>
+
+      <section class="group">
+        <h3 class="pano-section-title">06 · Validation & Export</h3>
+        <div id="panoValidationList" class="validation-list"></div>
+        <div class="row2" style="margin-top:10px">
+          <div class="field">
+            <label for="panoResolution">Master resolution</label>
+            <select id="panoResolution">
+              <option value="1024">1K · 1024 × 512</option>
+              <option value="2048" selected>2K · 2048 × 1024</option>
+            </select>
+            <div id="panoResolutionInvalid" class="invalid-label">Invalid resolution: 360 Panoramic export is limited to 2K (2048 × 1024).</div>
+          </div>
+          <div class="field">
+            <label for="panoFormat">Output</label>
+            <select id="panoFormat">
+              <option value="image/vnd.radiance" selected>Radiance HDR · linear RGBE master</option>
+              <option value="image/x-exr">OpenEXR · linear HALF master</option>
+              <option value="image/png">PNG · display preview</option>
+            </select>
+          </div>
+        </div>
+        <button id="panoExportBtn" class="btn btn-primary btnwide" type="button" style="margin-top:12px">Export HDRI Environment</button>
+        <div class="note">Radiance .hdr and OpenEXR .exr are linear HDR masters in this offline single-file build. HDR export uses standard Radiance 32-bit RGBE RLE. EXR export uses OpenEXR file-format v2, single-part uncompressed HALF RGB scanlines for maximum portability with both current and newer OpenEXR software. PNG is tone-mapped reference only.</div>
+      </section>
+      <div class="panel pano-pipeline-status">
+        <div class="uv-head">
+          <h2>HDRI Pipeline Status</h2>
+          <div class="hint">Source interpretation and export information</div>
+        </div>
+        <div class="pano-pipeline-body" tabindex="0" role="region" aria-label="HDRI pipeline details" style="padding:14px;display:grid;gap:10px">
+          <div class="panorama-info"><strong>Geometry:</strong> source interpretation and HDR/EXR/PNG export are equirectangular 360° × 180° only, with an exact 2:1 master map.</div>
+          <div class="panorama-info"><strong>Radiance:</strong> bitmap RGB is linearized before processing; Radiance .hdr and OpenEXR .exr are decoded as scene-linear radiance. ACES-style tone mapping is used only for on-screen preview. HDR exports use RGBE; EXR exports use linear HALF RGB.</div>
+          <div class="panorama-info"><strong>Lighting Test:</strong> the preview evaluates the environment on chrome and diffuse test spheres plus a neutral ground surface so directionality, reflections, color cast, and headroom can be inspected before export.</div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="stage-column">
+      <div class="panel stage-panel">
+        <div class="stage-head">
+          <div>
+            <div class="pano-subtabs" role="tablist" aria-label="360 Panoramic preview">
+              <button id="panoViewEquirectBtn" class="pano-subtab active" type="button">Equirectangular</button>
+              <button id="panoView360Btn" class="pano-subtab" type="button">360 View</button>
+              <button id="panoViewLightingBtn" class="pano-subtab" type="button">Lighting Test</button>
+            </div>
+            <button id="panoResetViewBtn" class="btn btn-secondary" type="button" style="margin-top:8px">Reset View / Orientation</button>
+            <div id="panoramaViewHint" class="hint" style="margin-top:6px">Exact 2:1 master · longitude −180° → +180° · latitude +90° → −90°</div>
+          </div>
+          <div id="panoramaRenderStatus" class="hint">Preview 2048 × 1024</div>
+        </div>
+        <div id="panoramaView">
+          <div id="panoramaFitBox" class="panorama-fitbox">
+            <canvas id="panoramaCanvas" width="2048" height="1024"></canvas>
+            <canvas id="panoramaOverlayCanvas" width="2048" height="1024"></canvas>
+            <div id="panoramaEmptyState" class="empty-state">
+              <div><strong>Import a source image</strong>The 360 Panoramic pipeline will analyze coverage and build a spherical environment-map preview.</div>
+            </div>
+            <div id="panoramaBadge" class="panorama-badge">Equirectangular · 360° × 180°</div>
+          </div>
+        </div>
+      </div>
+
+
+    </section>
+  </main>
+  <footer>©2026 Ervin Faristiyanto. All rights reserved.</footer>
+</div>
+
+<div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <h3 id="modalTitle">Confirm action</h3>
+    <p id="modalMessage"></p>
+    <div class="modal-actions">
+      <button id="modalCancel" class="btn btn-secondary" type="button">Cancel</button>
+      <button id="modalConfirm" class="btn btn-primary" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="exportPreviewBackdrop" class="export-preview-backdrop" role="dialog" aria-modal="true" aria-labelledby="exportPreviewTitle">
+  <div class="export-preview-modal">
+    <div class="export-preview-head">
+      <div>
+        <h3 id="exportPreviewTitle">Export Preview</h3>
+        <p id="exportPreviewMessage">Review the rendered result before generating the final file.</p>
+      </div>
+    </div>
+    <div class="export-preview-stage">
+      <img id="exportPreviewImage" alt="Rendered export preview" />
+    </div>
+    <div id="exportPreviewMeta" class="export-preview-meta"></div>
+    <div class="modal-actions">
+      <button id="exportPreviewBack" class="btn btn-secondary" type="button">Back</button>
+      <button id="exportPreviewConfirm" class="btn btn-primary" type="button">Generate Final File</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+
+const state = {
+  image: null,
+  imageName: "",
+  glReady: false,
+  canvas: null,
+  gl: null,
+  program: null,
+  buffers: null,
+  texture: null,
+  uniforms: {},
+  attribs: {},
+  yaw: Math.PI,
+  pitch: 0,
+  distance: 4.2,
+  panX: 0,
+  panY: 0,
+  dragging: false,
+  dragMode: "orbit",
+  lastX: 0,
+  lastY: 0,
+  lastTime: performance.now(),
+  animationId: 0,
+  textureDirty: true,
+  uvSelected: false,
+  uvHoverHandle: null,
+  uvActiveHandle: null,
+  uvDragStart: null,
+  activePreview: "sphere",
+  mercatorDirty: true,
+  mercatorRaf: 0,
+  equalDirty: true,
+  equalRaf: 0,
+  activeWorkspace: "spherical"
+};
+
+const panoramaState = {
+  image: null,
+  imageName: "",
+  gl: null,
+  program: null,
+  buffer: null,
+  texture: null,
+  textureDirty: true,
+  uniforms: {},
+  attrib: -1,
+  ready: false,
+  raf: 0,
+  renderMode: "full",
+  finalTimer: 0,
+  previewWidth: 2048,
+  previewHeight: 1024,
+  viewMode: "equirect",
+  viewerYaw: 0,
+  viewerPitch: 0,
+  seamDelta: null,
+  radianceSource: null,
+  lastHdrExrImportInfo: "",
+  textureWidth: 1,
+  textureHeight: 1
+};
+
+const uvCanvas = $("uvCanvas");
+const uvCtx = uvCanvas.getContext("2d", { alpha: true });
+const uvOverlayCanvas = $("uvOverlayCanvas");
+const uvOverlayCtx = uvOverlayCanvas.getContext("2d");
+const gridCanvas = $("uvGridCanvas");
+const gridCtx = gridCanvas.getContext("2d");
+const mercatorCanvas = $("mercatorCanvas");
+const mercatorCtx = mercatorCanvas.getContext("2d");
+const equalCanvas = $("equalCanvas");
+const equalCtx = equalCanvas.getContext("2d");
+const panoramaCanvas = $("panoramaCanvas");
+const panoramaOverlayCanvas = $("panoramaOverlayCanvas");
+const panoramaOverlayCtx = panoramaOverlayCanvas.getContext("2d");
+
+
+function showToast(message){
+  const el = $("toast");
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => el.classList.remove("show"), 2400);
+}
+
+function updateNetworkStatus(){
+  const online = navigator.onLine;
+  const el = $("netStatus");
+  el.classList.toggle("online", online);
+  el.classList.toggle("offline", !online);
+  el.querySelector("span:last-child").textContent = online ? "Online" : "Offline";
+}
+window.addEventListener("online", updateNetworkStatus);
+window.addEventListener("offline", updateNetworkStatus);
+updateNetworkStatus();
+
+$("creatorLink").addEventListener("click", (event) => {
+  if (!navigator.onLine){
+    event.preventDefault();
+    openModal(
+      "Internet connection required",
+      "The creator profile is an external link. The application itself still works offline; reconnect only if you want to open Instagram.",
+      null,
+      "Close"
+    );
+  }
+});
+
+function applyTheme(isDark){
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  $("themeToggle").checked = isDark;
+  try { localStorage.setItem("spherePrototypeTheme", isDark ? "dark" : "light"); } catch {}
+}
+let savedTheme = null;
+try { savedTheme = localStorage.getItem("spherePrototypeTheme"); } catch {}
+applyTheme(savedTheme ? savedTheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches);
+$("themeToggle").addEventListener("change", e => applyTheme(e.target.checked));
+
+let panoramaPrewarmTimer = 0;
+let panoramaPrewarmIdle = 0;
+
+function cancelPanoramaPrewarm(){
+  if(panoramaPrewarmTimer){clearTimeout(panoramaPrewarmTimer);panoramaPrewarmTimer=0;}
+  if(panoramaPrewarmIdle&&"cancelIdleCallback" in window){cancelIdleCallback(panoramaPrewarmIdle);panoramaPrewarmIdle=0;}
+}
+
+function schedulePanoramaPrewarm(delay=700){
+  cancelPanoramaPrewarm();
+  if(document.hidden||state.activeWorkspace==='panoramic')return;
+  panoramaPrewarmTimer=setTimeout(()=>{
+    panoramaPrewarmTimer=0;
+    const run=()=>{
+      panoramaPrewarmIdle=0;
+      if(document.hidden||state.activeWorkspace==='panoramic')return;
+      if(!panoramaState.gl)initPanoramaWebGL();
+      // Upload/downsample Tab 2's own source while idle so opening 360 Panoramic never touches Tab 1 data.
+      if(panoramaState.ready&&panoramaState.image&&panoramaState.textureDirty)uploadPanoramaTexture(false);
+    };
+    if("requestIdleCallback" in window)panoramaPrewarmIdle=requestIdleCallback(run,{timeout:1600});
+    else panoramaPrewarmTimer=setTimeout(run,180);
+  },delay);
+}
+
+function openPanoramaRendererAfterPaint(){
+  // Two animation frames guarantee the tab switch is painted before any first-time shader work.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(state.activeWorkspace!=='panoramic')return;
+    if(!panoramaState.gl)initPanoramaWebGL();
+    if(!panoramaState.ready)return;
+    requestPanoramaRender("low");
+    drawPanoramaOverlay();
+    schedulePanoramaFinalRender();
+  }));
+}
+
+function setWorkspaceTab(mode){
+  const panoramic = mode === "panoramic";
+  state.activeWorkspace = panoramic ? "panoramic" : "spherical";
+  $("sphericalWorkspace").classList.toggle("active", !panoramic);
+  $("panoramicWorkspace").classList.toggle("active", panoramic);
+  $("sphericalModeTab").classList.toggle("active", !panoramic);
+  $("panoramicModeTab").classList.toggle("active", panoramic);
+  $("sphericalModeTab").setAttribute("aria-selected", panoramic ? "false" : "true");
+  $("panoramicModeTab").setAttribute("aria-selected", panoramic ? "true" : "false");
+  if (panoramic){
+    cancelPanoramaPrewarm();
+    // If pre-warmed, the low preview can queue immediately; otherwise defer initialization until after paint.
+    if(panoramaState.ready){
+      requestPanoramaRender("low");
+      drawPanoramaOverlay();
+      schedulePanoramaFinalRender();
+    }else openPanoramaRendererAfterPaint();
+  } else {
+    clearTimeout(panoramaState.finalTimer);clearTimeout(panoramaState.renderTimer);
+    if(panoramaState.raf)cancelAnimationFrame(panoramaState.raf);panoramaState.raf=0;panoramaState.renderTimer=0;
+    resizeMercatorFitBox();
+    resizeEqualFitBox();
+    schedulePanoramaPrewarm(500);
+  }
+}
+
+$("sphericalModeTab").addEventListener("click", () => setWorkspaceTab("spherical"));
+$("panoramicModeTab").addEventListener("click", () => setWorkspaceTab("panoramic"));
+
+let modalConfirmHandler = null;
+function openModal(title, message, onConfirm = null, confirmLabel = "Confirm"){
+  $("modalTitle").textContent = title;
+  $("modalMessage").textContent = message;
+  $("modalConfirm").textContent = confirmLabel;
+  $("modalCancel").style.display = onConfirm ? "" : "none";
+  modalConfirmHandler = onConfirm;
+  $("modalBackdrop").classList.add("open");
+  requestAnimationFrame(() => $("modalConfirm").focus());
+}
+function closeModal(){
+  $("modalBackdrop").classList.remove("open");
+  modalConfirmHandler = null;
+}
+
+const exportPreviewState = {
+  confirmHandler: null,
+  currentUrl: ""
+};
+
+function revokeExportPreviewUrl(){
+  if (exportPreviewState.currentUrl){
+    try { URL.revokeObjectURL(exportPreviewState.currentUrl); } catch {}
+    exportPreviewState.currentUrl = "";
+  }
+}
+
+function openExportPreview(title, message, imageUrl, meta, onConfirm, confirmLabel = "Generate Final File"){
+  revokeExportPreviewUrl();
+  exportPreviewState.currentUrl = imageUrl || "";
+  exportPreviewState.confirmHandler = onConfirm || null;
+  $("exportPreviewTitle").textContent = title;
+  $("exportPreviewMessage").textContent = message;
+  $("exportPreviewMeta").textContent = meta || "";
+  $("exportPreviewImage").src = imageUrl || "";
+  $("exportPreviewConfirm").textContent = confirmLabel;
+  $("exportPreviewBackdrop").classList.add("open");
+  requestAnimationFrame(() => $("exportPreviewConfirm").focus());
+}
+
+function closeExportPreview(){
+  $("exportPreviewBackdrop").classList.remove("open");
+  $("exportPreviewImage").removeAttribute("src");
+  exportPreviewState.confirmHandler = null;
+  revokeExportPreviewUrl();
+}
+
+async function withBusyButton(button, busyText, task){
+  const oldText = button.textContent;
+  button.disabled = true;
+  button.textContent = busyText;
+  try {
+    await task();
+  } finally {
+    button.disabled = false;
+    button.textContent = oldText;
+  }
+}
+
+function canvasToBlob(canvas, mime = "image/png", quality){
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      blob => blob ? resolve(blob) : reject(new Error("Canvas preview returned no data.")),
+      mime,
+      quality
+    );
+  });
+}
+
+$("modalCancel").addEventListener("click", closeModal);
+$("modalConfirm").addEventListener("click", () => {
+  const fn = modalConfirmHandler;
+  closeModal();
+  if (fn) fn();
+});
+$("modalBackdrop").addEventListener("click", (e) => {
+  if (e.target === $("modalBackdrop")) closeModal();
+});
+$("exportPreviewBack").addEventListener("click", closeExportPreview);
+$("exportPreviewBackdrop").addEventListener("click", (e) => {
+  if (e.target === $("exportPreviewBackdrop")) closeExportPreview();
+});
+$("exportPreviewConfirm").addEventListener("click", async () => {
+  const fn = exportPreviewState.confirmHandler;
+  closeExportPreview();
+  if (fn) await fn();
+});
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if ($("exportPreviewBackdrop").classList.contains("open")){
+    closeExportPreview();
+    return;
+  }
+  if ($("modalBackdrop").classList.contains("open")) closeModal();
+});
+
+function drawUvGrid(){
+  const w = gridCanvas.width, h = gridCanvas.height;
+  gridCtx.clearRect(0,0,w,h);
+  if (!$("showGrid").checked) return;
+
+  gridCtx.save();
+  gridCtx.lineWidth = 2;
+  gridCtx.strokeStyle = "rgba(255,255,255,.72)";
+  for(let i=0;i<=24;i++){
+    const x = Math.round(i * w / 24) + .5;
+    gridCtx.beginPath(); gridCtx.moveTo(x,0); gridCtx.lineTo(x,h); gridCtx.stroke();
+  }
+  for(let j=0;j<=12;j++){
+    const y = Math.round(j * h / 12) + .5;
+    gridCtx.beginPath(); gridCtx.moveTo(0,y); gridCtx.lineTo(w,y); gridCtx.stroke();
+  }
+
+  gridCtx.lineWidth = 4;
+  gridCtx.strokeStyle = "rgba(20,184,166,.92)";
+  gridCtx.beginPath();
+  gridCtx.moveTo(w/2,0); gridCtx.lineTo(w/2,h);
+  gridCtx.moveTo(0,h/2); gridCtx.lineTo(w,h/2);
+  gridCtx.stroke();
+
+  gridCtx.lineWidth = 6;
+  gridCtx.strokeStyle = "rgba(244,63,94,.9)";
+  gridCtx.beginPath(); gridCtx.moveTo(2,0); gridCtx.lineTo(2,h); gridCtx.stroke();
+  gridCtx.beginPath(); gridCtx.moveTo(w-2,0); gridCtx.lineTo(w-2,h); gridCtx.stroke();
+  gridCtx.restore();
+}
+drawUvGrid();
+$("showGrid").addEventListener("change", () => { drawUvGrid(); drawUvOverlay(); });
+
+function getUvPlacement(){
+  const w = uvCanvas.width, h = uvCanvas.height;
+  if (!state.image){
+    return { w, h, hasImage:false, cx:w/2, cy:h/2, dw:0, dh:0, rotation:0 };
+  }
+
+  const img = state.image;
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const fit = $("fitMode").value;
+  const userScale = Number($("uvScale").value) / 100;
+  const stretchX = Number($("uvStretchX").value) / 100;
+  const stretchY = Number($("uvStretchY").value) / 100;
+  const ox = Number($("uvOffsetX").value) / 100 * w;
+  const oy = Number($("uvOffsetY").value) / 100 * h;
+  const rot = Number($("uvRotation").value) * Math.PI / 180;
+
+  let baseScaleX = 1, baseScaleY = 1;
+  if (fit === "stretch"){
+    baseScaleX = w / iw;
+    baseScaleY = h / ih;
+  } else {
+    const s = fit === "cover" ? Math.max(w/iw,h/ih) : Math.min(w/iw,h/ih);
+    baseScaleX = baseScaleY = s;
+  }
+
+  return {
+    w, h,
+    hasImage:true,
+    image:img,
+    cx:w/2 + ox,
+    cy:h/2 + oy,
+    dw:iw * baseScaleX * userScale * stretchX,
+    dh:ih * baseScaleY * userScale * stretchY,
+    rotation:rot
+  };
+}
+
+function applyUvSeamBlend(){
+  if (!state.image || !$("blendSeam").checked) return;
+
+  const w = uvCanvas.width;
+  const h = uvCanvas.height;
+  const pct = Math.max(1, Math.min(20, Number($("blendWidth").value) || 6));
+  const blendW = Math.max(2, Math.round(w * pct / 100));
+
+  try{
+    const left = uvCtx.getImageData(0, 0, blendW, h);
+    const right = uvCtx.getImageData(w - blendW, 0, blendW, h);
+    const L = left.data;
+    const R = right.data;
+
+    for (let y = 0; y < h; y++){
+      for (let d = 0; d < blendW; d++){
+        const li = (y * blendW + d) * 4;
+        const ri = (y * blendW + (blendW - 1 - d)) * 4;
+        const edgeWeight = 1 - d / Math.max(1, blendW - 1);
+        const a = 0.5 * edgeWeight;
+
+        const lr=L[li], lg=L[li+1], lb=L[li+2], la=L[li+3];
+        const rr=R[ri], rg=R[ri+1], rb=R[ri+2], ra=R[ri+3];
+
+        L[li]   = Math.round(lr*(1-a) + rr*a);
+        L[li+1] = Math.round(lg*(1-a) + rg*a);
+        L[li+2] = Math.round(lb*(1-a) + rb*a);
+        L[li+3] = Math.round(la*(1-a) + ra*a);
+
+        R[ri]   = Math.round(rr*(1-a) + lr*a);
+        R[ri+1] = Math.round(rg*(1-a) + lg*a);
+        R[ri+2] = Math.round(rb*(1-a) + lb*a);
+        R[ri+3] = Math.round(ra*(1-a) + la*a);
+      }
+    }
+
+    uvCtx.putImageData(left, 0, 0);
+    uvCtx.putImageData(right, w - blendW, 0);
+  }catch(err){
+    console.warn("UV seam blend skipped:", err);
+  }
+}
+
+function markMercatorDirty(){
+  state.mercatorDirty = true;
+  if (state.activePreview === "mercator") requestMercatorRender();
+}
+
+function requestMercatorRender(){
+  if (state.mercatorRaf) return;
+  state.mercatorRaf = requestAnimationFrame(() => {
+    state.mercatorRaf = 0;
+    renderMercator();
+  });
+}
+
+function drawMercatorGrid(ctx, width, height){
+  if (!$("showMercatorGrid").checked) return;
+
+  const thickness = Math.max(1, Math.min(5, Number($("mercatorGridThickness").value) || 2));
+  const color = $("mercatorGridColor").value || "#ffffff";
+  const maxLat = 85.05112878 * Math.PI / 180;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = thickness;
+  ctx.globalAlpha = 0.88;
+
+  // Meridians every 30°
+  for (let lon = -180; lon <= 180; lon += 30){
+    const x = ((lon + 180) / 360) * width;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+
+  // Parallels every 15° within Web Mercator latitude limits
+  for (let latDeg = -75; latDeg <= 75; latDeg += 15){
+    const lat = latDeg * Math.PI / 180;
+    const mercY = Math.log(Math.tan(Math.PI / 4 + lat / 2));
+    const y = (1 - mercY / Math.PI) * 0.5 * height;
+    if (y >= 0 && y <= height){
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }
+
+  // Equator and prime meridian slightly emphasized.
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = thickness * 1.35;
+
+  const eqY = height / 2;
+  ctx.beginPath();
+  ctx.moveTo(0, eqY);
+  ctx.lineTo(width, eqY);
+  ctx.stroke();
+
+  const primeX = width / 2;
+  ctx.beginPath();
+  ctx.moveTo(primeX, 0);
+  ctx.lineTo(primeX, height);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+
+function mollweideForward(lon, lat){
+  let theta = lat;
+  for (let i = 0; i < 12; i++){
+    const f = 2 * theta + Math.sin(2 * theta) - Math.PI * Math.sin(lat);
+    const fp = 2 + 2 * Math.cos(2 * theta);
+    const delta = f / Math.max(1e-6, fp);
+    theta -= delta;
+    if (Math.abs(delta) < 1e-8) break;
+  }
+  const x = (2 * Math.SQRT2 / Math.PI) * lon * Math.cos(theta);
+  const y = Math.SQRT2 * Math.sin(theta);
+  return { x, y };
+}
+
+function mollweideInverse(x, y){
+  const ratio = Math.max(-1, Math.min(1, y / Math.SQRT2));
+  const theta = Math.asin(ratio);
+  const cosTheta = Math.cos(theta);
+  if (Math.abs(cosTheta) < 1e-7) return null;
+  const lon = (Math.PI * x) / (2 * Math.SQRT2 * cosTheta);
+  if (!Number.isFinite(lon) || lon < -Math.PI || lon > Math.PI) return null;
+  const latTerm = (2 * theta + Math.sin(2 * theta)) / Math.PI;
+  const lat = Math.asin(Math.max(-1, Math.min(1, latTerm)));
+  return { lon, lat };
+}
+
+function mapLonLatToUv(lon, lat, srcW, srcH){
+  return {
+    sx: ((lon + Math.PI) / (2 * Math.PI)) * srcW,
+    sy: ((Math.PI / 2 - lat) / Math.PI) * srcH
+  };
+}
+
+function markEqualDirty(){
+  state.equalDirty = true;
+  if (state.activePreview === "equal") requestEqualRender();
+}
+
+function requestEqualRender(){
+  if (state.equalRaf) return;
+  state.equalRaf = requestAnimationFrame(() => {
+    state.equalRaf = 0;
+    renderEqualProjection();
+  });
+}
+
+function drawEqualGrid(ctx, width, height){
+  if (!$("showMercatorGrid").checked) return;
+  const thickness = Math.max(1, Math.min(5, Number($("mercatorGridThickness").value) || 2));
+  const color = $("mercatorGridColor").value || "#ffffff";
+
+  function projectToCanvas(lon, lat){
+    const p = mollweideForward(lon, lat);
+    const nx = (p.x + 2 * Math.SQRT2) / (4 * Math.SQRT2);
+    const ny = (Math.SQRT2 - p.y) / (2 * Math.SQRT2);
+    return { x: nx * width, y: ny * height };
+  }
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = thickness;
+  ctx.globalAlpha = 0.88;
+
+  for (let lonDeg = -150; lonDeg <= 150; lonDeg += 30){
+    ctx.beginPath();
+    let started = false;
+    for (let latDeg = -89; latDeg <= 89; latDeg += 1.5){
+      const p = projectToCanvas(lonDeg * Math.PI / 180, latDeg * Math.PI / 180);
+      if (!started){ ctx.moveTo(p.x, p.y); started = true; }
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
+
+  for (let latDeg = -75; latDeg <= 75; latDeg += 15){
+    ctx.beginPath();
+    let started = false;
+    for (let lonDeg = -180; lonDeg <= 180; lonDeg += 1.5){
+      const p = projectToCanvas(lonDeg * Math.PI / 180, latDeg * Math.PI / 180);
+      if (!started){ ctx.moveTo(p.x, p.y); started = true; }
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = thickness * 1.35;
+
+  ctx.beginPath();
+  let startedEq = false;
+  for (let lonDeg = -180; lonDeg <= 180; lonDeg += 1.5){
+    const p = projectToCanvas(lonDeg * Math.PI / 180, 0);
+    if (!startedEq){ ctx.moveTo(p.x, p.y); startedEq = true; }
+    else ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+
+  ctx.beginPath();
+  let startedPm = false;
+  for (let latDeg = -89; latDeg <= 89; latDeg += 1.5){
+    const p = projectToCanvas(0, latDeg * Math.PI / 180);
+    if (!startedPm){ ctx.moveTo(p.x, p.y); startedPm = true; }
+    else ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.ellipse(width / 2, height / 2, width / 2 - thickness / 2, height / 2 - thickness / 2, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function renderEqualProjection(){
+  if (!state.equalDirty) return;
+  state.equalDirty = false;
+
+  const outW = equalCanvas.width;
+  const outH = equalCanvas.height;
+  equalCtx.clearRect(0, 0, outW, outH);
+  equalCtx.fillStyle = $("sphereColor").value;
+  equalCtx.fillRect(0, 0, outW, outH);
+
+  if (!state.image){
+    equalCtx.save();
+    equalCtx.fillStyle = "#64748b";
+    equalCtx.font = "600 42px system-ui";
+    equalCtx.textAlign = "center";
+    equalCtx.textBaseline = "middle";
+    equalCtx.fillText("Import a bitmap image to generate Equal projection", outW / 2, outH / 2);
+    equalCtx.restore();
+    return;
+  }
+
+  const srcW = uvCanvas.width;
+  const srcH = uvCanvas.height;
+  const srcPixels = uvCtx.getImageData(0, 0, srcW, srcH).data;
+  const imgData = equalCtx.createImageData(outW, outH);
+  const data = imgData.data;
+
+  for (let y = 0; y < outH; y++){
+    const projY = (1 - 2 * (y + 0.5) / outH) * Math.SQRT2;
+    for (let x = 0; x < outW; x++){
+      const projX = (2 * (x + 0.5) / outW - 1) * (2 * Math.SQRT2);
+      if ((projX * projX) / 8 + (projY * projY) / 2 > 1) continue;
+
+      const inv = mollweideInverse(projX, projY);
+      if (!inv) continue;
+      const uv = mapLonLatToUv(inv.lon, inv.lat, srcW, srcH);
+      const sx = Math.max(0, Math.min(srcW - 1, Math.round(uv.sx)));
+      const sy = Math.max(0, Math.min(srcH - 1, Math.round(uv.sy)));
+      const si = (sy * srcW + sx) * 4;
+      const di = (y * outW + x) * 4;
+
+      data[di] = srcPixels[si];
+      data[di + 1] = srcPixels[si + 1];
+      data[di + 2] = srcPixels[si + 2];
+      data[di + 3] = 255;
+    }
+  }
+
+  equalCtx.putImageData(imgData, 0, 0);
+  drawEqualGrid(equalCtx, outW, outH);
+}
+
+
+function renderMercator(){
+  if (!state.mercatorDirty) return;
+  state.mercatorDirty = false;
+
+  const outW = mercatorCanvas.width;
+  const outH = mercatorCanvas.height;
+  mercatorCtx.clearRect(0,0,outW,outH);
+  mercatorCtx.fillStyle = $("sphereColor").value;
+  mercatorCtx.fillRect(0,0,outW,outH);
+
+  if (!state.image){
+    mercatorCtx.save();
+    mercatorCtx.fillStyle = "#64748b";
+    mercatorCtx.font = "600 42px system-ui";
+    mercatorCtx.textAlign = "center";
+    mercatorCtx.textBaseline = "middle";
+    mercatorCtx.fillText("Import a bitmap image to generate Mercator projection", outW/2, outH/2);
+    mercatorCtx.restore();
+    return;
+  }
+
+  const srcW = uvCanvas.width;
+  const srcH = uvCanvas.height;
+  for (let y = 0; y < outH; y++){
+    const mercY = Math.PI * (1 - 2 * (y + 0.5) / outH);
+    const lat = Math.atan(Math.sinh(mercY));
+    const srcY = (Math.PI/2 - lat) / Math.PI * srcH;
+    mercatorCtx.drawImage(
+      uvCanvas,
+      0, Math.max(0, Math.min(srcH - 1, srcY)), srcW, 1,
+      0, y, outW, 1
+    );
+  }
+
+  drawMercatorGrid(mercatorCtx, outW, outH);
+}
+
+
+function resizeMercatorFitBox(){
+  const view = $("mercatorView");
+  const box = $("mercatorFitBox");
+  if (!view || !box) return;
+
+  const styles = getComputedStyle(view);
+  const padX = (parseFloat(styles.paddingLeft) || 0) + (parseFloat(styles.paddingRight) || 0);
+  const padY = (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.paddingBottom) || 0);
+  const requested = getEqualViewportExportSize();
+  const aspect = Math.max(0.25, Math.min(4, requested.width / Math.max(1, requested.height)));
+
+  const availW = Math.max(0, view.clientWidth - padX);
+  const availH = Math.max(0, view.clientHeight - padY);
+  const width = Math.max(160, Math.floor(Math.min(availW, availH * aspect)));
+  const height = Math.max(80, Math.floor(width / aspect));
+
+  box.style.width = width + "px";
+  box.style.height = height + "px";
+  box.style.aspectRatio = String(aspect);
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const internalW = Math.max(256, Math.round(width * dpr));
+  const internalH = Math.max(128, Math.round(height * dpr));
+  if (mercatorCanvas.width !== internalW || mercatorCanvas.height !== internalH){
+    mercatorCanvas.width = internalW;
+    mercatorCanvas.height = internalH;
+    state.mercatorDirty = true;
+  }
+}
+
+function resizeEqualFitBox(){
+  const view = $("equalView");
+  const box = $("equalFitBox");
+  if (!view || !box) return;
+
+  const styles = getComputedStyle(view);
+  const padX = (parseFloat(styles.paddingLeft) || 0) + (parseFloat(styles.paddingRight) || 0);
+  const padY = (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.paddingBottom) || 0);
+  const requested = getEqualViewportExportSize();
+  const aspect = Math.max(0.25, Math.min(4, requested.width / Math.max(1, requested.height)));
+
+  const availW = Math.max(0, view.clientWidth - padX);
+  const availH = Math.max(0, view.clientHeight - padY);
+  const width = Math.max(160, Math.floor(Math.min(availW, availH * aspect)));
+  const height = Math.max(80, Math.floor(width / aspect));
+
+  box.style.width = width + "px";
+  box.style.height = height + "px";
+  box.style.aspectRatio = String(aspect);
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const internalW = Math.max(256, Math.round(width * dpr));
+  const internalH = Math.max(128, Math.round(height * dpr));
+  if (equalCanvas.width !== internalW || equalCanvas.height !== internalH){
+    equalCanvas.width = internalW;
+    equalCanvas.height = internalH;
+    state.equalDirty = true;
+  }
+}
+
+function setPreviewTab(mode){
+  state.activePreview = mode;
+  const sphere = mode === "sphere";
+  const mercator = mode === "mercator";
+  const equal = mode === "equal";
+
+  $("viewport").classList.toggle("preview-hidden", !sphere);
+  $("mercatorView").classList.toggle("active", mercator);
+  $("equalView").classList.toggle("active", equal);
+
+  $("sphereTabBtn").classList.toggle("active", sphere);
+  $("mercatorTabBtn").classList.toggle("active", mercator);
+  $("equalTabBtn").classList.toggle("active", equal);
+
+  $("sphereTabBtn").setAttribute("aria-selected", sphere ? "true" : "false");
+  $("mercatorTabBtn").setAttribute("aria-selected", mercator ? "true" : "false");
+  $("equalTabBtn").setAttribute("aria-selected", equal ? "true" : "false");
+
+  $("previewHint").textContent = sphere
+    ? "Drag to orbit · wheel/pinch to zoom · right-drag to pan"
+    : mercator
+      ? "Canvas-fit preview · Web Mercator latitude limit ±85.051° · export follows Width × Height settings"
+      : "Equal-area preview · curved Mollweide grid · export follows Width × Height settings";
+
+  if (mercator){
+    resizeMercatorFitBox();
+    state.mercatorDirty = true;
+    requestMercatorRender();
+  }
+  if (equal){
+    resizeEqualFitBox();
+    state.equalDirty = true;
+    requestEqualRender();
+  }
+}
+
+/* ---------- 360 Panoramic · industry-oriented HDRI environment pipeline ---------- */
+function getPanoramaSourceDimensions(){
+  if (panoramaState.radianceSource) return {width:panoramaState.radianceSource.width,height:panoramaState.radianceSource.height};
+  if (!panoramaState.image) return {width:1,height:1};
+  return {width:panoramaState.image.naturalWidth||panoramaState.image.width||1,height:panoramaState.image.naturalHeight||panoramaState.image.height||1};
+}
+
+function kelvinToWhiteBalance(kelvin,tint){
+  const t=Math.max(1000,Math.min(40000,kelvin))/100;
+  let r,g,b;
+  if(t<=66){
+    r=255;
+    g=99.4708025861*Math.log(t)-161.1195681661;
+    b=t<=19?0:138.5177312231*Math.log(t-10)-305.0447927307;
+  }else{
+    r=329.698727446*Math.pow(t-60,-0.1332047592);
+    g=288.1221695283*Math.pow(t-60,-0.0755148492);
+    b=255;
+  }
+  r=Math.max(0,Math.min(255,r))/255;g=Math.max(0,Math.min(255,g))/255;b=Math.max(0,Math.min(255,b))/255;
+  const gray=(r+g+b)/3||1;
+  r=gray/r;g=gray/g;b=gray/b;
+  const ti=Number(tint||0)/100;
+  r*=1+Math.max(0,ti)*0.08;
+  b*=1+Math.max(0,-ti)*0.08;
+  g*=1-Math.abs(ti)*0.05;
+  return [Math.min(2,r),Math.min(2,g),Math.min(2,b)];
+}
+
+function updatePanoramaSourceStatus(){
+  const box=$('panoSourceStatus');
+  if(!panoramaState.image){box.textContent='Import an equirectangular 360° image, Radiance HDR, or OpenEXR file.';return;}
+  const {width:w,height:h}=getPanoramaSourceDimensions(),aspect=w/h;
+  const aspectNote=Math.abs(aspect-2)>.15?'Aspect warning: a 2:1 source is recommended for 360° × 180° coverage.':'2:1 source ratio matched.';
+  const linearNote=panoramaState.radianceSource?(panoramaState.radianceSource.format==='exr'?` OpenEXR v${panoramaState.radianceSource.version||2} linear radiance loaded · ${panoramaState.radianceSource.storage||'scanline'}${panoramaState.radianceSource.compressionName?' · '+panoramaState.radianceSource.compressionName:''}.`:` Radiance ${panoramaState.radianceSource.radianceFormat||'RGBE'} source loaded${panoramaState.radianceSource.compression?' · '+panoramaState.radianceSource.compression:''}.`) : '';
+  box.textContent=`${w} × ${h} · Equirectangular 360° × 180° · ${aspectNote}${linearNote}`;
+}
+
+function analyzePanoramaSourceSeam(){
+  panoramaState.seamDelta=null;
+  if(!panoramaState.image) return;
+  try{
+    const c=document.createElement('canvas');c.width=64;c.height=64;
+    const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(panoramaState.image,0,0,64,64);
+    const d=ctx.getImageData(0,0,64,64).data;
+    let sum=0,n=0;
+    for(let y=0;y<64;y++){
+      const a=(y*64)*4,b=(y*64+63)*4;
+      sum+=(Math.abs(d[a]-d[b])+Math.abs(d[a+1]-d[b+1])+Math.abs(d[a+2]-d[b+2]))/(255*3);n++;
+    }
+    panoramaState.seamDelta=sum/Math.max(1,n);
+  }catch{}
+}
+
+function initPanoramaWebGL(){
+  const gl=panoramaCanvas.getContext('webgl',{alpha:true,antialias:false,preserveDrawingBuffer:true,powerPreference:'high-performance'})
+    || panoramaCanvas.getContext('experimental-webgl',{alpha:true,antialias:false,preserveDrawingBuffer:true});
+  if(!gl){panoramaState.ready=false;$('panoramaRenderStatus').textContent='360 renderer unavailable · WebGL required';return;}
+
+  const vertexSource=`
+    attribute vec2 aPosition;
+    varying vec2 vUv;
+    void main(){vUv=aPosition*0.5+0.5;gl_Position=vec4(aPosition,0.0,1.0);}
+  `;
+
+  const fragmentSource=`
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uImage;
+    uniform float uHasImage;
+    uniform float uInteractive;
+    uniform float uFlipX;
+    uniform float uFlipY;
+    uniform float uSourceIsLinear;
+    uniform vec2 uSourceTexel;
+    uniform float uYaw;
+    uniform float uPitch;
+    uniform float uRoll;
+    uniform float uSeamEnabled;
+    uniform float uSeam;
+    uniform float uColorContinuity;
+    uniform float uLumaContinuity;
+    uniform float uPoleRepair;
+    uniform float uExposure;
+    uniform vec3 uWhiteBalance;
+    uniform float uHighlightRecovery;
+    uniform float uShadowRecovery;
+    uniform float uHeadroom;
+    uniform float uViewMode;
+    uniform float uDiagnosticMode;
+    uniform float uViewerYaw;
+    uniform float uViewerPitch;
+    uniform float uEncodeRGBE;
+    uniform vec2 uOutputSize;
+    uniform vec2 uTileOffset;
+    uniform vec2 uTileSize;
+
+    const float PI=3.14159265358979323846;
+
+    vec3 rotX(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(p.x,c*p.y-s*p.z,s*p.y+c*p.z);}
+    vec3 rotY(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(c*p.x+s*p.z,p.y,-s*p.x+c*p.z);}
+    vec3 rotZ(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(c*p.x-s*p.y,s*p.x+c*p.y,p.z);}
+    vec3 rotateSource(vec3 d){d=rotZ(d,-uRoll);d=rotX(d,-uPitch);d=rotY(d,-uYaw);return normalize(d);}
+    vec3 dirFromLonLat(float lon,float lat){float cl=cos(lat);return normalize(vec3(sin(lon)*cl,sin(lat),cos(lon)*cl));}
+    vec2 lonLatFromDir(vec3 d){return vec2(atan(d.x,d.z),asin(clamp(d.y,-1.0,1.0)));}
+    float luminance(vec3 c){return dot(c,vec3(0.2126,0.7152,0.0722));}
+    vec3 srgbToLinear(vec3 c){return pow(max(c,vec3(0.0)),vec3(2.2));}
+    vec3 acesTone(vec3 x){const float a=2.51,b=0.03,c=2.43,d=0.59,e=0.14;return clamp((x*(a*x+b))/(x*(c*x+d)+e),0.0,1.0);}
+
+    vec2 flippedUv(vec2 uv){
+      if(uFlipX>0.5) uv.x=1.0-uv.x;
+      if(uFlipY>0.5) uv.y=1.0-uv.y;
+      return uv;
+    }
+
+    vec3 decodeRGBETexel(vec4 t){
+      float e=floor(t.a*255.0+0.5);
+      if(e<1.0) return vec3(0.0);
+      vec3 m=floor(t.rgb*255.0+0.5);
+      return m*(exp2(e-128.0)/256.0);
+    }
+
+    vec3 decodeSourceTexel(vec4 t){return uSourceIsLinear>0.5?decodeRGBETexel(t):srgbToLinear(t.rgb);}
+
+    vec3 sampleLinearClamped(vec2 uv){
+      vec2 p=flippedUv(clamp(uv,vec2(0.0),vec2(1.0)));
+      if(uInteractive>0.5)return decodeSourceTexel(texture2D(uImage,p));
+      vec2 tex=max(uSourceTexel,vec2(1.0/8192.0));
+      vec2 q=p/tex-0.5;vec2 i=floor(q);vec2 f=fract(q);
+      vec2 a=(i+0.5)*tex;
+      vec3 c00=decodeSourceTexel(texture2D(uImage,clamp(a,tex*0.5,vec2(1.0)-tex*0.5)));
+      vec3 c10=decodeSourceTexel(texture2D(uImage,clamp(a+vec2(tex.x,0.0),tex*0.5,vec2(1.0)-tex*0.5)));
+      vec3 c01=decodeSourceTexel(texture2D(uImage,clamp(a+vec2(0.0,tex.y),tex*0.5,vec2(1.0)-tex*0.5)));
+      vec3 c11=decodeSourceTexel(texture2D(uImage,clamp(a+tex,tex*0.5,vec2(1.0)-tex*0.5)));
+      return mix(mix(c00,c10,f.x),mix(c01,c11,f.x),f.y);
+    }
+
+    vec3 sampleLinearWrapped(vec2 uv){
+      vec2 p=flippedUv(vec2(fract(uv.x),clamp(uv.y,0.0,1.0)));
+      if(uInteractive>0.5)return decodeSourceTexel(texture2D(uImage,p));
+      vec2 tex=max(uSourceTexel,vec2(1.0/8192.0));
+      vec2 q=p/tex-0.5;vec2 i=floor(q);vec2 f=fract(q);
+      vec2 a=(i+0.5)*tex;
+      vec2 p00=vec2(fract(a.x),clamp(a.y,tex.y*0.5,1.0-tex.y*0.5));
+      vec2 p10=vec2(fract(a.x+tex.x),p00.y);
+      vec2 p01=vec2(p00.x,clamp(a.y+tex.y,tex.y*0.5,1.0-tex.y*0.5));
+      vec2 p11=vec2(p10.x,p01.y);
+      vec3 c00=decodeSourceTexel(texture2D(uImage,p00));vec3 c10=decodeSourceTexel(texture2D(uImage,p10));
+      vec3 c01=decodeSourceTexel(texture2D(uImage,p01));vec3 c11=decodeSourceTexel(texture2D(uImage,p11));
+      return mix(mix(c00,c10,f.x),mix(c01,c11,f.x),f.y);
+    }
+
+    vec3 equirectSeamSample(vec2 uv){
+      float u=fract(uv.x);float w=max(0.0001,uSeam);
+      vec3 c=sampleLinearWrapped(vec2(u,uv.y));
+      if(uSeamEnabled<0.5||uSeam<=0.0001) return c;
+      float edge=min(u,1.0-u);if(edge>=w) return c;
+      float t=smoothstep(0.0,w,edge);
+      vec3 left=sampleLinearWrapped(vec2(w,uv.y));vec3 right=sampleLinearWrapped(vec2(1.0-w,uv.y));
+      vec3 boundary=0.5*(left+right);vec3 target=c;
+      if(uColorContinuity>0.5) target=boundary;
+      else if(uLumaContinuity>0.5){float lc=max(1e-5,luminance(c));target=c*(luminance(boundary)/lc);}
+      return mix(target,c,t);
+    }
+
+    vec2 sourceUvForDirection(vec3 worldDir){
+      vec3 d=rotateSource(worldDir);
+      vec2 ll=lonLatFromDir(d);
+      return vec2(fract(0.5+ll.x/(2.0*PI)),clamp(0.5-ll.y/PI,0.0,1.0));
+    }
+
+    vec4 evaluateEnvironment(vec3 dir){
+      vec2 uv=sourceUvForDirection(dir);
+      vec3 linear=equirectSeamSample(uv);
+      vec2 ll=lonLatFromDir(rotateSource(dir));
+      float pole=smoothstep(1.22,1.553,abs(ll.y))*uPoleRepair;
+      if(pole>0.001){
+        vec3 a=sampleLinearWrapped(vec2(uv.x+0.018,uv.y));vec3 b=sampleLinearWrapped(vec2(uv.x-0.018,uv.y));
+        vec3 c=sampleLinearWrapped(vec2(uv.x+0.045,uv.y));vec3 d=sampleLinearWrapped(vec2(uv.x-0.045,uv.y));
+        linear=mix(linear,(linear+a+b+c+d)/5.0,pole*0.72);
+      }
+      linear*=uWhiteBalance;
+      vec3 shadowLift=sqrt(max(linear,vec3(0.0)))-linear;linear+=max(shadowLift,vec3(0.0))*uShadowRecovery*0.38;
+      float lum=luminance(linear);float hi=smoothstep(0.55,1.0,lum);
+      float expansion=1.0+uHighlightRecovery*hi*hi*(exp2(uHeadroom*0.35)-1.0);linear*=expansion*exp2(uExposure);
+      return vec4(max(linear,vec3(0.0)),1.0);
+    }
+
+    vec3 viewerRay(vec2 uv){
+      vec2 p=uv*2.0-1.0;p.x*=1.7777778;float t=tan(radians(50.0));
+      vec3 d=normalize(vec3(p.x*t,p.y*t,1.0));
+      d=rotX(d,uViewerPitch);d=rotY(d,uViewerYaw);return normalize(d);
+    }
+
+    vec3 falseColor(float x){
+      x=clamp((log2(max(x,0.0001))+10.0)/14.0,0.0,1.0);
+      return clamp(vec3(1.5-abs(4.0*x-3.0),1.5-abs(4.0*x-2.0),1.5-abs(4.0*x-1.0)),0.0,1.0);
+    }
+
+    vec4 encodeRGBE(vec3 c){
+      float v=max(c.r,max(c.g,c.b));if(v<1e-32) return vec4(0.0);
+      float e=floor(log2(v))+1.0;vec3 rgb=floor(clamp(c*256.0/exp2(e),0.0,255.0));
+      return vec4((rgb+0.5)/255.0,(e+128.5)/255.0);
+    }
+
+    vec3 previewColor(vec4 env){
+      vec3 linear=env.rgb;
+      if(uDiagnosticMode>0.5&&uDiagnosticMode<1.5) return falseColor(luminance(linear));
+      if(uDiagnosticMode>1.5&&uDiagnosticMode<2.5){
+        float l=luminance(linear);return l>1.0?vec3(1.0,0.05,0.05):pow(acesTone(linear),vec3(1.0/2.2));
+      }
+      return pow(acesTone(linear),vec3(1.0/2.2));
+    }
+
+    void main(){
+      if(uHasImage<0.5){gl_FragColor=vec4(0.10,0.13,0.17,1.0);return;}
+      if(uEncodeRGBE>0.5){
+        float gx=uTileOffset.x+gl_FragCoord.x;
+        float gyTop=uTileOffset.y+(uTileSize.y-gl_FragCoord.y);
+        vec2 eq=vec2(gx/uOutputSize.x,gyTop/uOutputSize.y);
+        float lon=(eq.x*2.0-1.0)*PI;float lat=(0.5-eq.y)*PI;
+        gl_FragColor=encodeRGBE(evaluateEnvironment(dirFromLonLat(lon,lat)).rgb);return;
+      }
+      if(uViewMode<0.5){
+        float lon=(vUv.x*2.0-1.0)*PI;float lat=(vUv.y-0.5)*PI;
+        gl_FragColor=vec4(previewColor(evaluateEnvironment(dirFromLonLat(lon,lat))),1.0);return;
+      }
+      if(uViewMode<1.5){
+        gl_FragColor=vec4(previewColor(evaluateEnvironment(viewerRay(vUv))),1.0);return;
+      }
+
+      vec2 p=vUv*2.0-1.0;p.x*=1.7777778;
+      vec3 bg=vec3(0.12,0.14,0.17);vec3 col=bg;
+      float ground=smoothstep(-0.12,-0.02,p.y);
+      vec3 amb=previewColor(evaluateEnvironment(vec3(0.0,1.0,0.0)));
+      col=mix(bg*0.72+amb*0.18,bg,ground);
+      for(int i=0;i<2;i++){
+        float cx=i==0?-0.42:0.42;vec2 q=vec2((p.x-cx)/0.42,(p.y+0.02)/0.42);float rr=dot(q,q);
+        if(rr<=1.0){
+          vec3 n=normalize(vec3(q.x,q.y,sqrt(max(0.0,1.0-rr))));
+          if(i==0){vec3 refl=reflect(vec3(0.0,0.0,-1.0),n);col=previewColor(evaluateEnvironment(refl));}
+          else{
+            vec3 e0=evaluateEnvironment(n).rgb;
+            vec3 e1=evaluateEnvironment(normalize(n+vec3(0.35,0.0,0.2))).rgb;
+            vec3 e2=evaluateEnvironment(normalize(n+vec3(-0.35,0.0,0.2))).rgb;
+            col=pow(acesTone((e0+e1+e2)/3.0*0.72),vec3(1.0/2.2));
+          }
+        }
+      }
+      float sh1=exp(-((p.x+0.42)*(p.x+0.42)/0.10+(p.y+0.48)*(p.y+0.48)/0.012));
+      float sh2=exp(-((p.x-0.42)*(p.x-0.42)/0.10+(p.y+0.48)*(p.y+0.48)/0.012));
+      col*=1.0-0.28*max(sh1,sh2);
+      gl_FragColor=vec4(col,1.0);
+    }
+  `;
+
+  try{
+    const program=createProgram(gl,vertexSource,fragmentSource);
+    const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+    const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([32,38,48,255]));
+    panoramaState.gl=gl;panoramaState.program=program;panoramaState.buffer=buffer;panoramaState.texture=texture;
+    panoramaState.attrib=gl.getAttribLocation(program,'aPosition');
+    ['uImage','uHasImage','uInteractive','uFlipX','uFlipY','uSourceIsLinear','uSourceTexel','uYaw','uPitch','uRoll','uSeamEnabled','uSeam','uColorContinuity','uLumaContinuity','uPoleRepair','uExposure','uWhiteBalance','uHighlightRecovery','uShadowRecovery','uHeadroom','uViewMode','uDiagnosticMode','uViewerYaw','uViewerPitch','uEncodeRGBE','uOutputSize','uTileOffset','uTileSize'].forEach(n=>panoramaState.uniforms[n]=gl.getUniformLocation(program,n));
+    panoramaState.ready=true;panoramaState.textureDirty=true;
+  }catch(err){panoramaState.ready=false;console.error('360 panorama WebGL init failed:',err);$('panoramaRenderStatus').textContent='360 renderer error';}
+}
+
+function downsampleRgbeNearest(src,sw,sh,dw,dh){
+  const out=new Uint8Array(dw*dh*4);
+  for(let y=0;y<dh;y++){
+    const sy=Math.min(sh-1,Math.floor((y+0.5)*sh/dh));
+    for(let x=0;x<dw;x++){
+      const sx=Math.min(sw-1,Math.floor((x+0.5)*sw/dw));
+      const si=(sy*sw+sx)*4,di=(y*dw+x)*4;
+      out[di]=src[si];out[di+1]=src[si+1];out[di+2]=src[si+2];out[di+3]=src[si+3];
+    }
+  }
+  return out;
+}
+
+function uploadPanoramaTexture(forExport=false){
+  const gl=panoramaState.gl;if(!gl)return;
+  const tier=forExport?'export':'preview';
+  if(!panoramaState.textureDirty&&panoramaState.textureTier===tier)return;
+  panoramaState.textureTier=tier;
+  gl.bindTexture(gl.TEXTURE_2D,panoramaState.texture);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+  if(!panoramaState.image){
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([32,38,48,255]));
+    panoramaState.textureWidth=1;panoramaState.textureHeight=1;panoramaState.textureDirty=false;return;
+  }
+  const maxTex=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE)||4096,forExport?Infinity:2048);
+  if(panoramaState.radianceSource){
+    const h=panoramaState.radianceSource;const sc=Math.min(1,maxTex/h.width,maxTex/h.height);
+    const tw=Math.max(1,Math.round(h.width*sc)),th=Math.max(1,Math.round(h.height*sc));
+    const data=(tw===h.width&&th===h.height)?h.rgbe:downsampleRgbeNearest(h.rgbe,h.width,h.height,tw,th);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,tw,th,0,gl.RGBA,gl.UNSIGNED_BYTE,data);
+    panoramaState.textureWidth=tw;panoramaState.textureHeight=th;panoramaState.textureDirty=false;return;
+  }
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  const {width:iw,height:ih}=getPanoramaSourceDimensions();let source=panoramaState.image;
+  if(iw>maxTex||ih>maxTex){const sc=Math.min(maxTex/iw,maxTex/ih),tmp=document.createElement('canvas');tmp.width=Math.max(1,Math.round(iw*sc));tmp.height=Math.max(1,Math.round(ih*sc));tmp.getContext('2d').drawImage(panoramaState.image,0,0,tmp.width,tmp.height);source=tmp;}
+  const tw=source.naturalWidth||source.width||1,th=source.naturalHeight||source.height||1;
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,source);panoramaState.textureWidth=tw;panoramaState.textureHeight=th;panoramaState.textureDirty=false;
+}
+
+function applyPanoramaUniforms(encodeRGBE=0,outputSize=[1,1],tileOffset=[0,0],tileSize=[1,1]){
+  const gl=panoramaState.gl,u=panoramaState.uniforms;
+  gl.uniform1f(u.uInteractive,encodeRGBE?0:(panoramaState.interactive?1:0));
+  const wb=kelvinToWhiteBalance(Number($('panoTemperature').value),Number($('panoTint').value));
+  const diagnostic={none:0,luminance:1,clipping:2}[$('panoDiagnosticMode').value]||0;
+  gl.uniform1i(u.uImage,0);gl.uniform1f(u.uHasImage,panoramaState.image?1:0);
+  gl.uniform1f(u.uFlipX,$('panoFlipX').checked?1:0);gl.uniform1f(u.uFlipY,$('panoFlipY').checked?1:0);
+  gl.uniform1f(u.uSourceIsLinear,panoramaState.radianceSource?1:0);gl.uniform2f(u.uSourceTexel,1/Math.max(1,panoramaState.textureWidth),1/Math.max(1,panoramaState.textureHeight));
+  gl.uniform1f(u.uYaw,Number($('panoYaw').value)*Math.PI/180);gl.uniform1f(u.uPitch,Number($('panoPitch').value)*Math.PI/180);gl.uniform1f(u.uRoll,Number($('panoRoll').value)*Math.PI/180);
+  gl.uniform1f(u.uSeamEnabled,$('panoSeamEnabled').checked?1:0);gl.uniform1f(u.uSeam,Number($('panoSeam').value)/100);gl.uniform1f(u.uColorContinuity,$('panoColorContinuity').checked?1:0);gl.uniform1f(u.uLumaContinuity,$('panoLumaContinuity').checked?1:0);gl.uniform1f(u.uPoleRepair,Number($('panoPoleRepair').value)/100);
+  gl.uniform1f(u.uExposure,Number($('panoExposure').value));gl.uniform3f(u.uWhiteBalance,wb[0],wb[1],wb[2]);gl.uniform1f(u.uHighlightRecovery,Number($('panoHighlightRecovery').value)/100);gl.uniform1f(u.uShadowRecovery,Number($('panoShadowRecovery').value)/100);gl.uniform1f(u.uHeadroom,Number($('panoHeadroom').value));
+  gl.uniform1f(u.uViewMode,({equirect:0,viewer:1,lighting:2}[panoramaState.viewMode]||0));gl.uniform1f(u.uDiagnosticMode,diagnostic);gl.uniform1f(u.uViewerYaw,panoramaState.viewerYaw);gl.uniform1f(u.uViewerPitch,panoramaState.viewerPitch);
+  gl.uniform1f(u.uEncodeRGBE,encodeRGBE);gl.uniform2f(u.uOutputSize,outputSize[0],outputSize[1]);gl.uniform2f(u.uTileOffset,tileOffset[0],tileOffset[1]);gl.uniform2f(u.uTileSize,tileSize[0],tileSize[1]);
+}
+
+function updatePanoramaLabels(){
+  $('panoYawValue').textContent=`${Number($('panoYaw').value).toFixed(1).replace('.0','')}°`;
+  $('panoPitchValue').textContent=`${Number($('panoPitch').value).toFixed(1).replace('.0','')}°`;
+  $('panoRollValue').textContent=`${Number($('panoRoll').value).toFixed(2).replace(/\.00$/, '').replace(/0$/, '')}°`;
+  $('panoSeamValue').textContent=`${Number($('panoSeam').value).toFixed(1).replace('.0','')}%`;
+  $('panoPoleRepairValue').textContent=`${$('panoPoleRepair').value}%`;
+  $('panoExposureValue').textContent=`${Number($('panoExposure').value).toFixed(1)} EV`;
+  $('panoTemperatureValue').textContent=`${$('panoTemperature').value} K`;
+  $('panoTintValue').textContent=`${Number($('panoTint').value)>0?'+':''}${$('panoTint').value}`;
+  $('panoHighlightRecoveryValue').textContent=`${$('panoHighlightRecovery').value}%`;
+  $('panoShadowRecoveryValue').textContent=`${$('panoShadowRecovery').value}%`;
+  $('panoHeadroomValue').textContent=`${$('panoHeadroom').value} EV`;
+  updatePanoramaSourceStatus();updatePanoramaValidation();
+}
+
+function drawPanoramaOverlay(){
+  const c=panoramaOverlayCanvas,ctx=panoramaOverlayCtx,w=c.width,h=c.height;ctx.clearRect(0,0,w,h);
+  if(panoramaState.viewMode!=='equirect') return;
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+  if($('panoShowGrid').checked){
+    ctx.lineWidth=Math.max(1,w/1800);ctx.strokeStyle='rgba(56,189,248,.60)';
+    for(let lon=-150;lon<=150;lon+=30){const x=(lon+180)/360*w;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+    ctx.strokeStyle='rgba(74,222,128,.60)';
+    for(let lat=-75;lat<=75;lat+=15){const y=(90-lat)/180*h;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  }
+  if($('panoShowHorizon').checked){ctx.lineWidth=Math.max(2,w/900);ctx.strokeStyle='rgba(255,255,255,.92)';ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();}
+  if($('panoShowSeamGuide').checked){ctx.lineWidth=Math.max(2,w/900);ctx.strokeStyle='rgba(244,63,94,.92)';ctx.beginPath();ctx.moveTo(1,0);ctx.lineTo(1,h);ctx.moveTo(w-1,0);ctx.lineTo(w-1,h);ctx.stroke();}
+  if($('panoShowPoles').checked){ctx.fillStyle='rgba(250,204,21,.95)';ctx.font=`800 ${Math.max(13,Math.round(w/115))}px system-ui`;ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText('ZENITH +90°',w/2,8);ctx.textBaseline='bottom';ctx.fillText('NADIR −90°',w/2,h-8);}
+  if($('panoShowDirections').checked){ctx.fillStyle='rgba(248,113,113,.96)';ctx.font=`850 ${Math.max(14,Math.round(w/105))}px system-ui`;ctx.textAlign='center';ctx.textBaseline='bottom';for(const [u,label] of [[.0,'S'],[.25,'W'],[.5,'N'],[.75,'E'],[1,'S']])ctx.fillText(label,Math.min(w-10,Math.max(10,u*w)),h/2-7);}
+  ctx.restore();
+}
+
+function renderPanorama(mode='full',width=null,height=null){
+  if(!panoramaState.ready||panoramaState.gl.isContextLost())return;
+  if(width==null&&(document.hidden||state.activeWorkspace!=='panoramic'))return;
+  const gl=panoramaState.gl;
+  const low=mode==='low'&&width==null;
+  panoramaState.interactive=low;
+  let w,h;
+  if(width!=null){w=width;h=height||Math.round(width/2);}else if(panoramaState.viewMode==='equirect'){w=low?512:1280;h=w/2;}else{w=low?480:960;h=low?270:540;}
+  if(panoramaCanvas.width!==w)panoramaCanvas.width=w;if(panoramaCanvas.height!==h)panoramaCanvas.height=h;
+  gl.viewport(0,0,w,h);gl.useProgram(panoramaState.program);gl.bindBuffer(gl.ARRAY_BUFFER,panoramaState.buffer);gl.enableVertexAttribArray(panoramaState.attrib);gl.vertexAttribPointer(panoramaState.attrib,2,gl.FLOAT,false,0,0);
+  uploadPanoramaTexture(width!=null);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,panoramaState.texture);applyPanoramaUniforms(0,[w,h],[0,0],[w,h]);gl.drawArrays(gl.TRIANGLES,0,6);
+  if(width==null){
+    const fit=$('panoramaFitBox');fit.classList.toggle('viewer-mode',['viewer','lighting'].includes(panoramaState.viewMode));
+    fit.style.aspectRatio=`${w} / ${h}`;fitPanoramaPreview();
+    if(panoramaOverlayCanvas.width!==w)panoramaOverlayCanvas.width=w;if(panoramaOverlayCanvas.height!==h)panoramaOverlayCanvas.height=h;drawPanoramaOverlay();
+    $('panoramaRenderStatus').textContent=low?`Light · editing · ${w} × ${h}`:`Light preview · ${w} × ${h} · full-resolution export`;
+    $('panoramaBadge').textContent=panoramaState.viewMode==='equirect'?'Equirectangular · 360° × 180°':panoramaState.viewMode==='viewer'?'360 View · perspective inspection':'HDRI Lighting Test · chrome + diffuse';
+  }
+}
+
+function requestPanoramaRender(mode='full'){
+  if(!panoramaState.ready||document.hidden||state.activeWorkspace!=='panoramic')return;
+  // New interaction replaces pending full-quality work; only one frame is queued.
+  panoramaState.renderMode=mode;
+  if(panoramaState.renderTimer||panoramaState.raf)return;
+  const delay=Math.max(0,34-(performance.now()-(panoramaState.lastRenderTime||0)));
+  panoramaState.renderTimer=setTimeout(()=>{
+    panoramaState.renderTimer=0;
+    if(document.hidden||state.activeWorkspace!=='panoramic')return;
+    panoramaState.raf=requestAnimationFrame(()=>{
+      panoramaState.raf=0;panoramaState.lastRenderTime=performance.now();
+      renderPanorama(panoramaState.renderMode||'low');
+    });
+  },delay);
+}
+function schedulePanoramaFinalRender(){
+  clearTimeout(panoramaState.finalTimer);
+  panoramaState.finalTimer=setTimeout(()=>requestPanoramaRender('full'),350);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    clearTimeout(panoramaState.finalTimer);clearTimeout(panoramaState.renderTimer);panoramaState.renderTimer=0;
+    if(panoramaState.raf)cancelAnimationFrame(panoramaState.raf);panoramaState.raf=0;
+  }else requestPanoramaRender('full');
+});
+panoramaCanvas.addEventListener('webglcontextlost',()=>{
+  panoramaState.ready=false;clearTimeout(panoramaState.finalTimer);clearTimeout(panoramaState.renderTimer);
+  if(panoramaState.raf)cancelAnimationFrame(panoramaState.raf);panoramaState.raf=0;panoramaState.renderTimer=0;
+  $('panoramaRenderStatus').textContent='Graphics context unavailable. Reload the file to restart the lightweight renderer.';
+});
+
+function markPanoramaImageDirty(){panoramaState.textureDirty=true;analyzePanoramaSourceSeam();updatePanoramaSourceStatus();updatePanoramaValidation();requestPanoramaRender('full');}
+
+function updatePanoramaValidation(){
+  const root=$('panoValidationList');if(!root)return;
+  const rows=[];const outW=Math.min(2048,Math.max(1024,Number($('panoResolution').value)||2048));
+  rows.push(['2:1 aspect ratio','PASS','pass']);rows.push(['360° × 180° coordinate map','PASS','pass']);
+  rows.push(['Source projection','EQUIRECTANGULAR 360° × 180°','pass']);
+  if(panoramaState.seamDelta!=null){const d=panoramaState.seamDelta;rows.push(['Source seam delta',`${(d*100).toFixed(1)}%${$('panoSeamEnabled').checked?' · corrected':''}`,d<0.06||$('panoSeamEnabled').checked?'pass':'warn']);}
+  else rows.push(['Longitude continuity',panoramaState.image?'CHECK SOURCE SEAM':'SOURCE NOT LOADED',panoramaState.image?'warn':'warn']);
+  rows.push(['Zenith / nadir integrity',Number($('panoPoleRepair').value)>0?'REPAIR ON':'CHECK MANUALLY',Number($('panoPoleRepair').value)>0?'pass':'warn']);
+  const sourceFidelity=panoramaState.radianceSource?(panoramaState.radianceSource.format==='exr'?'OPENEXR LINEAR RADIANCE':'RADIANCE RGBE'):'LDR → ESTIMATED RADIANCE';
+  rows.push(['HDR source fidelity',sourceFidelity,panoramaState.radianceSource?'pass':'warn']);
+  const masterFormat=$('panoFormat').value;
+  rows.push(['Master encoding',masterFormat==='image/vnd.radiance'?'LINEAR RGBE HDR':masterFormat==='image/x-exr'?'LINEAR HALF EXR':'TONE-MAPPED PNG',masterFormat==='image/png'?'warn':'pass']);
+  rows.push(['Resolution',`${outW} × ${outW/2}`,outW===2048?'pass':'warn']);
+  root.innerHTML=rows.map(([a,b,c])=>`<div class="validation-row ${c}"><span>${a}</span><strong>${b}</strong></div>`).join('');
+}
+
+function setPanoramaView(mode){
+  if(!['equirect','viewer','lighting'].includes(mode))mode='equirect';
+  panoramaState.viewMode=mode;
+  panoramaCanvas.classList.toggle('can-drag',mode==='viewer');
+  $('panoViewEquirectBtn').classList.toggle('active',mode==='equirect');$('panoView360Btn').classList.toggle('active',mode==='viewer');$('panoViewLightingBtn').classList.toggle('active',mode==='lighting');
+  $('panoramaViewHint').textContent=mode==='equirect'?'Exact 2:1 master · longitude −180° → +180° · latitude +90° → −90°':mode==='viewer'?'Drag the preview to inspect the processed environment from inside the sphere.':'Chrome sphere tests reflection directionality · diffuse sphere tests broad lighting/color cast.';
+  requestPanoramaRender('full');
+}
+$('panoViewEquirectBtn').addEventListener('click',()=>setPanoramaView('equirect'));$('panoView360Btn').addEventListener('click',()=>setPanoramaView('viewer'));$('panoViewLightingBtn').addEventListener('click',()=>setPanoramaView('lighting'));
+
+// CSS fits the canvas to a size-contained stage. No resize observers or layout writes.
+function fitPanoramaPreview(){
+  $('panoramaFitBox').style.setProperty('--pano-ratio',panoramaCanvas.width/panoramaCanvas.height);
+}
+$('panoResetViewBtn').addEventListener('click',()=>{
+  panoramaState.viewerYaw=0;panoramaState.viewerPitch=0;
+  requestPanoramaRender('full');
+});
+let panoViewerDragging=false,panoViewerLastX=0,panoViewerLastY=0;
+panoramaCanvas.addEventListener('pointerdown',e=>{
+  if(e.button!==0||panoramaState.viewMode!=='viewer')return;
+  e.preventDefault();panoViewerDragging=true;panoViewerLastX=e.clientX;panoViewerLastY=e.clientY;
+  panoramaCanvas.classList.add('is-dragging');panoramaCanvas.setPointerCapture?.(e.pointerId);
+});
+panoramaCanvas.addEventListener('pointermove',e=>{
+  if(!panoViewerDragging)return;
+  const dx=e.clientX-panoViewerLastX,dy=e.clientY-panoViewerLastY;panoViewerLastX=e.clientX;panoViewerLastY=e.clientY;
+  panoramaState.viewerYaw-=dx*0.006;
+  panoramaState.viewerPitch=Math.max(-1.55,Math.min(1.55,panoramaState.viewerPitch+dy*0.006));
+  requestPanoramaRender('low');clearTimeout(panoramaState.finalTimer);
+});
+function endPanoViewerDrag(e){
+  if(!panoViewerDragging)return;panoViewerDragging=false;panoramaCanvas.classList.remove('is-dragging');
+  try{panoramaCanvas.releasePointerCapture?.(e.pointerId)}catch{}
+  schedulePanoramaFinalRender();
+}
+panoramaCanvas.addEventListener('pointerup',endPanoViewerDrag);panoramaCanvas.addEventListener('pointercancel',endPanoViewerDrag);panoramaCanvas.addEventListener('lostpointercapture',endPanoViewerDrag);
+
+function resetPanoramaControls(){
+  $('panoFlipX').checked=false;$('panoFlipY').checked=false;$('panoYaw').value=0;$('panoPitch').value=0;$('panoRoll').value=0;$('panoSeamEnabled').checked=true;$('panoSeam').value=3;$('panoColorContinuity').checked=true;$('panoLumaContinuity').checked=true;$('panoPoleRepair').value=35;$('panoExposure').value=0;$('panoTemperature').value=6500;$('panoTint').value=0;$('panoHighlightRecovery').value=20;$('panoShadowRecovery').value=10;$('panoHeadroom').value=8;$('panoDiagnosticMode').value='none';$('panoShowGrid').checked=true;$('panoShowHorizon').checked=true;$('panoShowDirections').checked=true;$('panoShowSeamGuide').checked=true;$('panoShowPoles').checked=true;panoramaState.viewerYaw=0;panoramaState.viewerPitch=0;setPanoramaView('equirect');updatePanoramaLabels();requestPanoramaRender('full');drawPanoramaOverlay();
+}
+
+const panoRenderInputs=['panoYaw','panoPitch','panoRoll','panoSeam','panoPoleRepair','panoExposure','panoTemperature','panoTint','panoHighlightRecovery','panoShadowRecovery','panoHeadroom'];
+panoRenderInputs.forEach(id=>$(id).addEventListener('input',()=>{updatePanoramaLabels();requestPanoramaRender('low');schedulePanoramaFinalRender();}));
+['panoSeamEnabled','panoColorContinuity','panoLumaContinuity','panoDiagnosticMode','panoFlipX','panoFlipY'].forEach(id=>$(id).addEventListener('change',()=>{if(id==='panoFlipX'||id==='panoFlipY')analyzePanoramaSourceSeam();updatePanoramaLabels();requestPanoramaRender('full');}));
+['panoShowGrid','panoShowHorizon','panoShowDirections','panoShowSeamGuide','panoShowPoles'].forEach(id=>$(id).addEventListener('change',drawPanoramaOverlay));
+$('panoResolution').addEventListener('change',()=>{validatePanoramaResolution();updatePanoramaValidation();});$('panoFormat').addEventListener('change',updatePanoramaValidation);validatePanoramaResolution();
+$('panoLevelHorizonBtn').addEventListener('click',()=>{$('panoPitch').value=0;$('panoRoll').value=0;updatePanoramaLabels();requestPanoramaRender('full');showToast('Horizon orientation leveled');});
+$('panoResetBtn').addEventListener('click',()=>openModal('Reset 360 Panoramic settings?','Restore equirectangular orientation, seam/pole correction, HDR radiance controls, and diagnostics to defaults.',()=>{resetPanoramaControls();showToast('360 Panoramic settings reset');},'Reset 360'));
+updatePanoramaLabels();
+
+function renderUv(){
+  const { w, h, hasImage, image, cx, cy, dw, dh, rotation } = getUvPlacement();
+  uvCtx.clearRect(0,0,w,h);
+  uvCtx.fillStyle = $("sphereColor").value;
+  uvCtx.fillRect(0,0,w,h);
+
+  if (!hasImage){
+    // Keep the actual sphere texture plain. Informational text is drawn
+    // only on the UV overlay/UI so it can never appear mirrored on the sphere.
+    drawUvOverlay();
+    markTextureDirty();
+    markMercatorDirty();
+    markEqualDirty();
+    return;
+  }
+
+  uvCtx.save();
+  uvCtx.translate(cx, cy);
+  uvCtx.rotate(rotation);
+  uvCtx.drawImage(image, -dw/2, -dh/2, dw, dh);
+  uvCtx.restore();
+
+  applyUvSeamBlend();
+  drawUvOverlay();
+  markTextureDirty();
+  markMercatorDirty();
+  markEqualDirty();
+}
+
+function markTextureDirty(){
+  state.textureDirty = true;
+}
+
+function toUvPoint(event){
+  const rect = uvOverlayCanvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * (uvOverlayCanvas.width / rect.width);
+  const y = (event.clientY - rect.top) * (uvOverlayCanvas.height / rect.height);
+  return { x, y };
+}
+
+function toLocalPoint(px, py, placement){
+  const dx = px - placement.cx;
+  const dy = py - placement.cy;
+  const c = Math.cos(placement.rotation);
+  const s = Math.sin(placement.rotation);
+  return {
+    x: dx * c + dy * s,
+    y: -dx * s + dy * c
+  };
+}
+
+function fromLocalPoint(lx, ly, placement){
+  const c = Math.cos(placement.rotation);
+  const s = Math.sin(placement.rotation);
+  return {
+    x: placement.cx + lx * c - ly * s,
+    y: placement.cy + lx * s + ly * c
+  };
+}
+
+function getUvHandles(placement){
+  const hw = placement.dw / 2;
+  const hh = placement.dh / 2;
+  return {
+    n:  fromLocalPoint(0, -hh, placement),
+    s:  fromLocalPoint(0, hh, placement),
+    e:  fromLocalPoint(hw, 0, placement),
+    w:  fromLocalPoint(-hw, 0, placement),
+    ne: fromLocalPoint(hw, -hh, placement),
+    nw: fromLocalPoint(-hw, -hh, placement),
+    se: fromLocalPoint(hw, hh, placement),
+    sw: fromLocalPoint(-hw, hh, placement),
+    rotate: fromLocalPoint(0, -hh - 90, placement)
+  };
+}
+
+function hitTestUvHandle(px, py, placement){
+  if (!placement.hasImage) return null;
+  const handles = getUvHandles(placement);
+  const hitRadius = 24;
+  for (const [name, pt] of Object.entries(handles)){
+    const dx = px - pt.x;
+    const dy = py - pt.y;
+    if (dx*dx + dy*dy <= hitRadius*hitRadius) return name;
+  }
+
+  const local = toLocalPoint(px, py, placement);
+  if (Math.abs(local.x) <= placement.dw/2 && Math.abs(local.y) <= placement.dh/2){
+    return "move";
+  }
+  return null;
+}
+
+function drawUvOverlay(){
+  const ctx = uvOverlayCtx;
+  const placement = getUvPlacement();
+  ctx.clearRect(0,0,uvOverlayCanvas.width,uvOverlayCanvas.height);
+
+  if (!placement.hasImage){
+    ctx.save();
+    ctx.fillStyle = "#64748b";
+    ctx.font = "600 40px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Import a bitmap image to preview its UV layout", uvOverlayCanvas.width/2, uvOverlayCanvas.height/2);
+    ctx.restore();
+    return;
+  }
+
+  const handles = getUvHandles(placement);
+  const hw = placement.dw / 2;
+  const hh = placement.dh / 2;
+  const corners = [
+    fromLocalPoint(-hw, -hh, placement),
+    fromLocalPoint(hw, -hh, placement),
+    fromLocalPoint(hw, hh, placement),
+    fromLocalPoint(-hw, hh, placement)
+  ];
+
+  state.uvSelected = true;
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(14,165,233,.98)";
+  ctx.lineWidth = 5;
+  ctx.setLineDash([18,10]);
+  ctx.beginPath();
+  ctx.moveTo(corners[0].x, corners[0].y);
+  for (let i = 1; i < corners.length; i++) ctx.lineTo(corners[i].x, corners[i].y);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = "rgba(14,165,233,.75)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(handles.n.x, handles.n.y);
+  ctx.lineTo(handles.rotate.x, handles.rotate.y);
+  ctx.stroke();
+
+  const drawHandle = (pt, fill, stroke, radius = 12) => {
+    ctx.beginPath();
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 4;
+    ctx.rect(pt.x - radius, pt.y - radius, radius*2, radius*2);
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  ["nw","n","ne","e","se","s","sw","w"].forEach(name => {
+    const active = state.uvActiveHandle === name || state.uvHoverHandle === name;
+    drawHandle(handles[name], active ? "rgba(255,255,255,.98)" : "rgba(226,232,240,.96)", "rgba(2,132,199,.98)", 12);
+  });
+
+  ctx.beginPath();
+  ctx.arc(handles.rotate.x, handles.rotate.y, 13, 0, Math.PI*2);
+  ctx.fillStyle = (state.uvActiveHandle === "rotate" || state.uvHoverHandle === "rotate") ? "rgba(255,255,255,.98)" : "rgba(254,242,242,.98)";
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(225,29,72,.98)";
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(placement.cx, placement.cy, 6, 0, Math.PI*2);
+  ctx.fillStyle = "rgba(14,165,233,.98)";
+  ctx.fill();
+  ctx.restore();
+}
+
+function syncOffsetsFromCenter(cx, cy){
+  const ox = ((cx - uvCanvas.width / 2) / uvCanvas.width) * 100;
+  const oy = ((cy - uvCanvas.height / 2) / uvCanvas.height) * 100;
+  $("uvOffsetX").value = Math.max(-100, Math.min(100, ox));
+  $("uvOffsetY").value = Math.max(-100, Math.min(100, oy));
+}
+
+function syncStretchFromSize(dw, dh){
+  const img = state.image;
+  if (!img) return;
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const fit = $("fitMode").value;
+  const userScale = Number($("uvScale").value) / 100;
+
+  let baseScaleX = 1, baseScaleY = 1;
+  if (fit === "stretch"){
+    baseScaleX = uvCanvas.width / iw;
+    baseScaleY = uvCanvas.height / ih;
+  } else {
+    const s = fit === "cover" ? Math.max(uvCanvas.width/iw,uvCanvas.height/ih) : Math.min(uvCanvas.width/iw,uvCanvas.height/ih);
+    baseScaleX = baseScaleY = s;
+  }
+
+  const baseW = iw * baseScaleX * userScale;
+  const baseH = ih * baseScaleY * userScale;
+
+  $("uvStretchX").value = Math.max(40, Math.min(220, (dw / baseW) * 100));
+  $("uvStretchY").value = Math.max(40, Math.min(220, (dh / baseH) * 100));
+}
+
+function updateUvCursor(event){
+  if (state.uvDragStart) return;
+  const placement = getUvPlacement();
+  const pt = toUvPoint(event);
+  const hit = hitTestUvHandle(pt.x, pt.y, placement);
+  state.uvHoverHandle = hit;
+  const cursorMap = {
+    move: "move",
+    rotate: "crosshair",
+    n: "ns-resize",
+    s: "ns-resize",
+    e: "ew-resize",
+    w: "ew-resize",
+    ne: "nesw-resize",
+    sw: "nesw-resize",
+    nw: "nwse-resize",
+    se: "nwse-resize"
+  };
+  uvOverlayCanvas.style.cursor = cursorMap[hit] || "grab";
+  drawUvOverlay();
+}
+
+uvOverlayCanvas.addEventListener("pointerdown", (event) => {
+  if (!state.image) return;
+  const placement = getUvPlacement();
+  const pt = toUvPoint(event);
+  const hit = hitTestUvHandle(pt.x, pt.y, placement);
+  state.uvHoverHandle = hit;
+  state.uvActiveHandle = hit || "move";
+  state.uvDragStart = {
+    handle: hit || "move",
+    pointerX: pt.x,
+    pointerY: pt.y,
+    centerX: placement.cx,
+    centerY: placement.cy,
+    dw: placement.dw,
+    dh: placement.dh,
+    rotation: placement.rotation,
+    startAngle: Math.atan2(pt.y - placement.cy, pt.x - placement.cx)
+  };
+  uvOverlayCanvas.classList.add("dragging");
+  uvOverlayCanvas.setPointerCapture?.(event.pointerId);
+  drawUvOverlay();
+});
+
+uvOverlayCanvas.addEventListener("pointermove", (event) => {
+  if (!state.image){
+    uvOverlayCanvas.style.cursor = "default";
+    return;
+  }
+
+  if (!state.uvDragStart){
+    updateUvCursor(event);
+    return;
+  }
+
+  const pt = toUvPoint(event);
+  const start = state.uvDragStart;
+  const placementNow = getUvPlacement();
+
+  if (start.handle === "move"){
+    const dx = pt.x - start.pointerX;
+    const dy = pt.y - start.pointerY;
+    syncOffsetsFromCenter(start.centerX + dx, start.centerY + dy);
+  } else if (start.handle === "rotate"){
+    const ang = Math.atan2(pt.y - placementNow.cy, pt.x - placementNow.cx);
+    const delta = ang - start.startAngle;
+    let deg = (start.rotation + delta) * 180 / Math.PI;
+    while (deg > 180) deg -= 360;
+    while (deg < -180) deg += 360;
+    $("uvRotation").value = Math.max(-180, Math.min(180, deg));
+  } else if (start.handle){
+    const startPlacement = {
+      cx: start.centerX,
+      cy: start.centerY,
+      dw: start.dw,
+      dh: start.dh,
+      rotation: start.rotation,
+      hasImage: true
+    };
+    const local = toLocalPoint(pt.x, pt.y, startPlacement);
+    let newDw = start.dw;
+    let newDh = start.dh;
+    const minSize = 60;
+
+    if (["e","w","ne","nw","se","sw"].includes(start.handle)){
+      newDw = Math.max(minSize, Math.abs(local.x) * 2);
+    }
+    if (["n","s","ne","nw","se","sw"].includes(start.handle)){
+      newDh = Math.max(minSize, Math.abs(local.y) * 2);
+    }
+    syncStretchFromSize(newDw, newDh);
+  }
+
+  updateControlLabels();
+  renderUv();
+  uvOverlayCanvas.style.cursor = "grabbing";
+});
+
+function finishUvDrag(event){
+  state.uvDragStart = null;
+  state.uvActiveHandle = null;
+  uvOverlayCanvas.classList.remove("dragging");
+  try { uvOverlayCanvas.releasePointerCapture?.(event.pointerId); } catch {}
+  drawUvOverlay();
+}
+uvOverlayCanvas.addEventListener("pointerup", finishUvDrag);
+uvOverlayCanvas.addEventListener("pointercancel", finishUvDrag);
+uvOverlayCanvas.addEventListener("pointerleave", () => {
+  if (!state.uvDragStart){
+    state.uvHoverHandle = null;
+    uvOverlayCanvas.style.cursor = "grab";
+    drawUvOverlay();
+  }
+});
+
+function updateControlLabels(){
+  $("uvScaleValue").textContent = `${$("uvScale").value}%`;
+  $("uvStretchXValue").textContent = `${$("uvStretchX").value}%`;
+  $("uvStretchYValue").textContent = `${$("uvStretchY").value}%`;
+  $("uvOffsetXValue").textContent = `${Math.round(Number($("uvOffsetX").value))}%`;
+  $("uvOffsetYValue").textContent = `${Math.round(Number($("uvOffsetY").value))}%`;
+  $("uvRotationValue").textContent = `${Math.round(Number($("uvRotation").value))}°`;
+  $("blendWidthValue").textContent = `${$("blendWidth").value}%`;
+  $("roughnessValue").textContent = `${$("roughness").value}%`;
+  $("lightStrengthValue").textContent = $("noLight") && $("noLight").checked ? "Off" : `${$("lightStrength").value}%`;
+  $("exportQualityValue").textContent = `${$("exportQuality").value}%`;
+}
+updateControlLabels();
+
+["uvScale","uvStretchX","uvStretchY","uvOffsetX","uvOffsetY","uvRotation"].forEach(id => {
+  $(id).addEventListener("input", () => {
+    updateControlLabels();
+    renderUv();
+  });
+});
+$("fitMode").addEventListener("change", renderUv);
+
+function updateBlendState(){
+  $("blendWidth").disabled = !$("blendSeam").checked;
+}
+$("blendSeam").addEventListener("change", () => {
+  updateBlendState();
+  renderUv();
+  showToast($("blendSeam").checked ? "UV seam blend enabled" : "UV seam blend disabled");
+});
+$("blendWidth").addEventListener("input", () => {
+  updateControlLabels();
+  renderUv();
+});
+updateBlendState();
+
+$("sphereTabBtn").addEventListener("click", () => setPreviewTab("sphere"));
+$("mercatorTabBtn").addEventListener("click", () => setPreviewTab("mercator"));
+$("equalTabBtn").addEventListener("click", () => setPreviewTab("equal"));
+
+function updateMercatorGridState(){
+  const enabled = $("showMercatorGrid").checked;
+  $("mercatorGridThickness").disabled = !enabled;
+  $("mercatorGridColor").disabled = !enabled;
+}
+$("showMercatorGrid").addEventListener("change", () => {
+  updateMercatorGridState();
+  markMercatorDirty();
+  markEqualDirty();
+  requestMercatorRender();
+  requestEqualRender();
+});
+function normalizeMercatorGridThickness(commit = false){
+  const input = $("mercatorGridThickness");
+  if (input.value === "" && !commit) return;
+
+  let value = Number(input.value);
+  if (!Number.isFinite(value)) value = 2;
+  value = Math.max(1, Math.min(5, value));
+  value = Math.round(value * 2) / 2;
+  input.value = String(value);
+}
+$("mercatorGridThickness").addEventListener("input", () => {
+  normalizeMercatorGridThickness(false);
+  markMercatorDirty();
+  markEqualDirty();
+  requestMercatorRender();
+  requestEqualRender();
+});
+$("mercatorGridThickness").addEventListener("change", () => {
+  normalizeMercatorGridThickness(true);
+  markMercatorDirty();
+  markEqualDirty();
+  requestMercatorRender();
+  requestEqualRender();
+});
+$("mercatorGridThickness").addEventListener("blur", () => {
+  normalizeMercatorGridThickness(true);
+});
+$("mercatorGridColor").addEventListener("input", () => {
+  markMercatorDirty();
+  markEqualDirty();
+  requestMercatorRender();
+  requestEqualRender();
+});
+normalizeMercatorGridThickness(true);
+updateMercatorGridState();
+
+function updateNoLightState(){
+  const off = $("noLight").checked;
+  $("lightStrength").disabled = off;
+  $("lightStrengthValue").textContent = off ? "Off" : `${$("lightStrength").value}%`;
+}
+$("noLight").addEventListener("change", () => {
+  updateNoLightState();
+  renderScene();
+  showToast($("noLight").checked ? "No Light enabled" : "Light shading enabled");
+});
+updateNoLightState();
+
+$("sphereColor").addEventListener("input", renderUv);
+$("roughness").addEventListener("input", updateControlLabels);
+$("lightStrength").addEventListener("input", () => {
+  updateControlLabels();
+  updateNoLightState();
+});
+$("sceneBg").addEventListener("input", () => {});
+$("exportQuality").addEventListener("input", updateControlLabels);
+["exportWidth","exportHeight"].forEach(id => {
+  $(id).addEventListener("input", () => {
+    validateTab1Resolution(true);
+    resizeMercatorFitBox();
+    resizeEqualFitBox();
+    if (state.activePreview === "mercator") requestMercatorRender();
+    if (state.activePreview === "equal") requestEqualRender();
+  });
+  $(id).addEventListener("blur", () => validateTab1Resolution(true));
+});
+validateTab1Resolution(true);
+
+$("resetUvBtn").addEventListener("click", () => {
+  openModal("Reset UV adjustments?", "This will restore fit, scale, offsets, and UV rotation to their defaults.", () => {
+    $("fitMode").value = "cover";
+    $("uvScale").value = 100;
+    $("uvStretchX").value = 100;
+    $("uvStretchY").value = 100;
+    $("uvOffsetX").value = 0;
+    $("uvOffsetY").value = 0;
+    $("uvRotation").value = 0;
+    updateControlLabels();
+    renderUv();
+    showToast("UV adjustments reset");
+  }, "Reset UV");
+});
+$("centerUvBtn").addEventListener("click", () => {
+  $("uvOffsetX").value = 0;
+  $("uvOffsetY").value = 0;
+  updateControlLabels();
+  renderUv();
+  showToast("Image centered on UV map");
+});
+
+$("originalSizeBtn").addEventListener("click", () => {
+  $("uvScale").value = 100;
+  $("uvStretchX").value = 100;
+  $("uvStretchY").value = 100;
+  updateControlLabels();
+  renderUv();
+  showToast("Image restored to original UV size");
+});
+
+function revokeImageObjectUrl(image){
+  if(image&&image._objectUrl){
+    try{URL.revokeObjectURL(image._objectUrl);}catch{}
+  }
+}
+
+function clearSphericalImportedImage(){
+  if(!state.image)return;
+  revokeImageObjectUrl(state.image);
+  state.image=null;
+  state.imageName="";
+  $("fileInput").value="";
+  $("clearImportedImageBtn").disabled=true;
+  $("emptyState").classList.remove("hidden");
+
+  // Tab 1 only: preserve its controls and clear its own texture/projection outputs.
+  state.textureDirty=true;
+  state.mercatorDirty=true;
+  state.equalDirty=true;
+  renderUv();
+  drawUvOverlay();
+  if(state.activePreview==="mercator")requestMercatorRender();
+  if(state.activePreview==="equal")requestEqualRender();
+  showToast("Spherical Projection image cleared");
+}
+
+function clearPanoramaImportedImage(){
+  if(!panoramaState.image)return;
+  revokeImageObjectUrl(panoramaState.image);
+  panoramaState.image=null;
+  panoramaState.imageName="";
+  panoramaState.radianceSource=null;
+  panoramaState.lastHdrExrImportInfo="";
+  panoramaState.textureDirty=true;
+  panoramaState.seamDelta=null;
+  $("panoramaFileInput").value="";
+  $("panoHdrFileInput").value="";
+  $("panoHdrInfoBtn").disabled=true;
+  $("panoramaClearBtn").disabled=true;
+  $("panoramaEmptyState").classList.remove("hidden");
+  updatePanoramaSourceStatus();
+  updatePanoramaValidation();
+  requestPanoramaRender("full");
+  drawPanoramaOverlay();
+  showToast("360 Panoramic source cleared");
+}
+
+$("clearImportedImageBtn").addEventListener("click",()=>{
+  if(!state.image)return;
+  openModal(
+    "Clear Spherical Projection image?",
+    "This removes only the bitmap imported in Tab 1. The 360 Panoramic source remains unchanged.",
+    clearSphericalImportedImage,
+    "Clear Image"
+  );
+});
+
+$("panoramaClearBtn").addEventListener("click",()=>{
+  if(!panoramaState.image)return;
+  openModal(
+    "Clear 360 Panoramic source?",
+    "This removes only the source imported in Tab 2. The Spherical Projection image remains unchanged.",
+    clearPanoramaImportedImage,
+    "Clear Source"
+  );
+});
+
+function loadSphericalBitmapFile(file,sourceInput){
+  if(!file)return;
+  if(!file.type.startsWith("image/")){
+    openModal("Unsupported file","Please choose a bitmap image such as PNG, JPG, WebP, BMP, or GIF.",null,"Close");
+    if(sourceInput)sourceInput.value="";
+    return;
+  }
+
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  img.decoding="async";
+  img.onload=()=>{
+    revokeImageObjectUrl(state.image);
+    img._objectUrl=url;
+    state.image=img;
+    state.imageName=file.name;
+    $("clearImportedImageBtn").disabled=false;
+    $("emptyState").classList.add("hidden");
+    renderUv();
+    drawUvOverlay();
+    markEqualDirty();
+    if(state.activePreview==="equal")requestEqualRender();
+    showToast(`Tab 1 loaded ${file.name}`);
+  };
+  img.onerror=()=>{
+    URL.revokeObjectURL(url);
+    if(sourceInput)sourceInput.value="";
+    openModal("Image load failed","The selected bitmap could not be decoded by this browser.",null,"Close");
+  };
+  img.src=url;
+}
+
+function loadPanoramaBitmapFile(file,sourceInput){
+  if(!file)return;
+  if(!file.type.startsWith("image/")){
+    openModal("Unsupported file","Please choose an equirectangular bitmap such as PNG, JPG, WebP, BMP, or GIF.",null,"Close");
+    if(sourceInput)sourceInput.value="";
+    return;
+  }
+
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  img.decoding="async";
+  img.onload=()=>{
+    revokeImageObjectUrl(panoramaState.image);
+    img._objectUrl=url;
+    panoramaState.image=img;
+    panoramaState.imageName=file.name;
+    panoramaState.radianceSource=null;
+    panoramaState.lastHdrExrImportInfo="";
+    panoramaState.textureDirty=true;
+    $("panoHdrFileInput").value="";
+    $("panoHdrInfoBtn").disabled=true;
+    $("panoramaClearBtn").disabled=false;
+    $("panoramaEmptyState").classList.add("hidden");
+    analyzePanoramaSourceSeam();
+    updatePanoramaSourceStatus();
+    updatePanoramaValidation();
+    if(state.activeWorkspace==="panoramic"){
+      requestPanoramaRender("low");
+      schedulePanoramaFinalRender();
+    }else schedulePanoramaPrewarm(250);
+    showToast(`Tab 2 loaded ${file.name}`);
+  };
+  img.onerror=()=>{
+    URL.revokeObjectURL(url);
+    if(sourceInput)sourceInput.value="";
+    openModal("Image load failed","The selected equirectangular bitmap could not be decoded by this browser.",null,"Close");
+  };
+  img.src=url;
+}
+
+function decodeRgbePixel(r,g,b,e){
+  if(!e)return [0,0,0];const s=Math.pow(2,e-128)/256;return [r*s,g*s,b*s];
+}
+
+function parseRadianceHeader(buffer){
+  const bytes=new Uint8Array(buffer),probe=new TextDecoder('ascii').decode(bytes.subarray(0,Math.min(bytes.length,262144)));
+  const res=/([+-])([XY])\s+(\d+)\s+([+-])([XY])\s+(\d+)[ \t]*(?:\r?\n|$)/m.exec(probe);
+  if(!res)throw new Error('Radiance HDR resolution line was not recognized. Expected two X/Y axes such as "-Y 1024 +X 2048".');
+  const axis1=res[2],axis2=res[5];
+  if(axis1===axis2)throw new Error('Radiance HDR resolution uses duplicate axes. Expected one X axis and one Y axis.');
+  const n1=Number(res[3]),n2=Number(res[6]);
+  const width=axis1==='X'?n1:n2,height=axis1==='Y'?n1:n2;
+  if(!width||!height||width>32768||height>32768)throw new Error('HDR dimensions are invalid or unsupported.');
+  const header=probe.slice(0,res.index);
+  const signature=(/^\s*(#\?(?:RADIANCE|RGBE))/im.exec(header)||[])[1]||'unlabelled Radiance-compatible header';
+  const formatRaw=((/^FORMAT\s*=\s*([^\r\n]+)/im.exec(header)||[])[1]||'32-bit_rle_rgbe').trim();
+  const format=formatRaw.toLowerCase();
+  if(format!=='32-bit_rle_rgbe'&&format!=='32-bit_rle_xyze')throw new Error(`Radiance HDR FORMAT=${formatRaw} is not supported. Supported formats are 32-bit_rle_rgbe and 32-bit_rle_xyze.`);
+  return {
+    bytes,probe,signature,format,formatRaw,
+    axis1,sign1:res[1],n1,axis2,sign2:res[4],n2,
+    width,height,dataStart:res.index+res[0].length,
+    orientation:`${res[1]}${axis1} ${n1} ${res[4]}${axis2} ${n2}`
+  };
+}
+
+function decodeRadianceScanline(bytes,posRef,length,stats){
+  const row=new Uint8Array(length*4);
+  if(length>=8&&length<=32767&&posRef.pos+4<=bytes.length&&bytes[posRef.pos]===2&&bytes[posRef.pos+1]===2&&(((bytes[posRef.pos+2]<<8)|bytes[posRef.pos+3])===length)){
+    stats.modernRle=true;posRef.pos+=4;
+    const channels=[new Uint8Array(length),new Uint8Array(length),new Uint8Array(length),new Uint8Array(length)];
+    for(let c=0;c<4;c++){
+      let x=0;
+      while(x<length){
+        if(posRef.pos>=bytes.length)throw new Error('Unexpected end of HDR RLE data.');
+        const code=bytes[posRef.pos++];
+        if(code>128){
+          const count=code-128;
+          if(count<1||x+count>length||posRef.pos>=bytes.length)throw new Error('Invalid HDR RLE run.');
+          channels[c].fill(bytes[posRef.pos++],x,x+count);x+=count;
+        }else{
+          const count=code;
+          if(count<1||x+count>length||posRef.pos+count>bytes.length)throw new Error('Invalid HDR RLE literal.');
+          channels[c].set(bytes.subarray(posRef.pos,posRef.pos+count),x);posRef.pos+=count;x+=count;
+        }
+      }
+    }
+    for(let x=0;x<length;x++){row[x*4]=channels[0][x];row[x*4+1]=channels[1][x];row[x*4+2]=channels[2][x];row[x*4+3]=channels[3][x];}
+    return row;
+  }
+
+  let x=0,runShift=0,sawLegacy=false;
+  while(x<length){
+    if(posRef.pos+4>bytes.length)throw new Error('Unexpected end of legacy/raw HDR scanline.');
+    const r=bytes[posRef.pos++],g=bytes[posRef.pos++],b=bytes[posRef.pos++],e=bytes[posRef.pos++];
+    if(r===1&&g===1&&b===1){
+      if(x===0)throw new Error('Invalid legacy HDR RLE run at the start of a scanline.');
+      const count=e*Math.pow(256,runShift/8);
+      if(!Number.isSafeInteger(count)||count<1||x+count>length)throw new Error('Invalid legacy HDR RLE repeat count.');
+      const p=(x-1)*4;
+      for(let k=0;k<count;k++){const d=x*4;row[d]=row[p];row[d+1]=row[p+1];row[d+2]=row[p+2];row[d+3]=row[p+3];x++;}
+      runShift+=8;sawLegacy=true;
+    }else{
+      const d=x*4;row[d]=r;row[d+1]=g;row[d+2]=b;row[d+3]=e;x++;runShift=0;
+    }
+  }
+  if(sawLegacy)stats.legacyRle=true;else stats.rawScanline=true;
+  return row;
+}
+
+function radianceAxisIndex(axis,sign,index,size){
+  if(axis==='X')return sign==='+'?index:(size-1-index);
+  return sign==='-'?index:(size-1-index);
+}
+
+function xyzeScanlineToRgbe(row){
+  const out=new Uint8Array(row.length);
+  for(let i=0;i<row.length;i+=4){
+    const xyz=decodeRgbePixel(row[i],row[i+1],row[i+2],row[i+3]);
+    const X=xyz[0],Y=xyz[1],Z=xyz[2];
+    const rgb=linearRgbToRgbe(
+      3.2404542*X-1.5371385*Y-0.4985314*Z,
+      -0.9692660*X+1.8760108*Y+0.0415560*Z,
+      0.0556434*X-0.2040259*Y+1.0572252*Z
+    );
+    out[i]=rgb[0];out[i+1]=rgb[1];out[i+2]=rgb[2];out[i+3]=rgb[3];
+  }
+  return out;
+}
+
+function parseRadianceHdr(buffer){
+  const h=parseRadianceHeader(buffer),out=new Uint8Array(h.width*h.height*4),posRef={pos:h.dataStart},stats={modernRle:false,legacyRle:false,rawScanline:false};
+  const isXyze=h.format==='32-bit_rle_xyze';
+  for(let outer=0;outer<h.n1;outer++){
+    let row=decodeRadianceScanline(h.bytes,posRef,h.n2,stats);
+    if(isXyze)row=xyzeScanlineToRgbe(row);
+    for(let inner=0;inner<h.n2;inner++){
+      const c1=radianceAxisIndex(h.axis1,h.sign1,outer,h.n1),c2=radianceAxisIndex(h.axis2,h.sign2,inner,h.n2);
+      const x=h.axis1==='X'?c1:c2,y=h.axis1==='Y'?c1:c2,si=inner*4,di=(y*h.width+x)*4;
+      out[di]=row[si];out[di+1]=row[si+1];out[di+2]=row[si+2];out[di+3]=row[si+3];
+    }
+  }
+  const modes=[];if(stats.modernRle)modes.push('modern RLE');if(stats.legacyRle)modes.push('legacy RLE');if(stats.rawScanline)modes.push('raw scanline');
+  return {
+    width:h.width,height:h.height,rgbe:out,format:'hdr',
+    radianceFormat:isXyze?'XYZE':'RGBE',
+    sourceEncoding:h.formatRaw,
+    signature:h.signature,
+    orientation:h.orientation,
+    compression:modes.join(' + ')||'RGBE/XYZE scanline',
+    convertedFromXyze:isXyze
+  };
+}
+
+/* ---------- OpenEXR scanline codec: offline, RGB/RGBA HALF/FLOAT, NONE/ZIP/ZIPS/PIZ ---------- */
+const EXR_MAGIC=20000630;
+const exrAsciiDecoder=new TextDecoder('ascii');
+const exrF32=new Float32Array(1),exrU32=new Uint32Array(exrF32.buffer);
+
+function readExrCString(bytes,state,end=bytes.length){
+  const start=state.pos;
+  while(state.pos<end&&bytes[state.pos]!==0)state.pos++;
+  if(state.pos>=end)throw new Error('OpenEXR header contains an unterminated string.');
+  const out=exrAsciiDecoder.decode(bytes.subarray(start,state.pos));state.pos++;
+  return out;
+}
+function halfToFloat(h){
+  const sign=(h&0x8000)?-1:1,exp=(h>>>10)&31,frac=h&1023;
+  if(exp===0)return frac?sign*Math.pow(2,-14)*(frac/1024):sign*0;
+  if(exp===31)return frac?NaN:sign*Infinity;
+  return sign*Math.pow(2,exp-15)*(1+frac/1024);
+}
+function floatToHalfBits(value){
+  let v=Number(value);if(!Number.isFinite(v))v=v>0?65504:0;v=Math.max(0,Math.min(65504,v));
+  exrF32[0]=v;const x=exrU32[0],sign=(x>>>16)&0x8000,exp=(x>>>23)&255;let mant=x&0x7fffff;
+  if(exp===255)return sign|(mant?0x7e00:0x7c00);
+  let he=exp-127+15;
+  if(he>=31)return sign|0x7bff;
+  if(he<=0){if(he<-10)return sign;mant=(mant|0x800000)>>(1-he);return sign|((mant+0x1000)>>13);}
+  return sign|(he<<10)|((mant+0x1000)>>13);
+}
+function linearRgbToRgbe(r,g,b){
+  r=Math.max(0,Number(r)||0);g=Math.max(0,Number(g)||0);b=Math.max(0,Number(b)||0);
+  const m=Math.max(r,g,b);if(m<1e-32)return [0,0,0,0];
+  const e=Math.floor(Math.log2(m))+1,scale=256/Math.pow(2,e);
+  return [Math.min(255,Math.floor(r*scale)),Math.min(255,Math.floor(g*scale)),Math.min(255,Math.floor(b*scale)),Math.max(1,Math.min(255,e+128))];
+}
+async function inflateOpenExrZip(payload){
+  if(typeof DecompressionStream!=='function')throw new Error('This browser does not provide DecompressionStream, which is required for ZIP/ZIPS-compressed EXR import. Uncompressed EXR files remain supported.');
+  let inflated=null,lastErr=null;
+  for(const fmt of ['deflate','deflate-raw']){
+    try{
+      const stream=new Blob([payload]).stream().pipeThrough(new DecompressionStream(fmt));
+      inflated=new Uint8Array(await new Response(stream).arrayBuffer());break;
+    }catch(err){lastErr=err;}
+  }
+  if(!inflated)throw new Error(`OpenEXR ZIP decompression failed: ${lastErr?.message||lastErr||'unknown error'}`);
+  for(let i=1;i<inflated.length;i++)inflated[i]=(inflated[i-1]+inflated[i]-128)&255;
+  const out=new Uint8Array(inflated.length),half=(inflated.length+1)>>1;let a=0,b=half;
+  for(let i=0;i<out.length;i+=2){out[i]=inflated[a++];if(i+1<out.length)out[i+1]=inflated[b++];}
+  return out;
+}
+
+/* OpenEXR PIZ decoder. PIZ uses a 16-bit value LUT, Huffman coding, and a 2D wavelet transform. */
+const EXR_PIZ_USHORT_RANGE=65536;
+const EXR_PIZ_BITMAP_SIZE=EXR_PIZ_USHORT_RANGE>>3;
+const EXR_PIZ_HUF_ENCBITS=16;
+const EXR_PIZ_HUF_DECBITS=14;
+const EXR_PIZ_HUF_ENCSIZE=(1<<EXR_PIZ_HUF_ENCBITS)+1;
+const EXR_PIZ_HUF_DECSIZE=1<<EXR_PIZ_HUF_DECBITS;
+const EXR_PIZ_HUF_DECMASK=EXR_PIZ_HUF_DECSIZE-1;
+const EXR_PIZ_SHORTEST_LONG_RUN=59;
+const EXR_PIZ_LONGEST_LONG_RUN=63;
+const EXR_PIZ_MIN_LONG_RUN=2+EXR_PIZ_LONGEST_LONG_RUN-EXR_PIZ_SHORTEST_LONG_RUN;
+const EXR_PIZ_HUF_CODELEN=59;
+const exrPizCodeCount=new Array(EXR_PIZ_HUF_CODELEN).fill(0);
+
+function exrPizReadU8(bytes,pos){if(pos.value>=bytes.length)throw new Error('OpenEXR PIZ data is truncated.');return bytes[pos.value++];}
+function exrPizReadU16(dv,pos){if(pos.value+2>dv.byteLength)throw new Error('OpenEXR PIZ data is truncated.');const v=dv.getUint16(pos.value,true);pos.value+=2;return v;}
+function exrPizReadU32(dv,pos){if(pos.value+4>dv.byteLength)throw new Error('OpenEXR PIZ data is truncated.');const v=dv.getUint32(pos.value,true);pos.value+=4;return v;}
+function exrPizReverseLutFromBitmap(bitmap,lut){
+  let k=0;
+  for(let i=0;i<EXR_PIZ_USHORT_RANGE;i++)if(i===0||(bitmap[i>>3]&(1<<(i&7))))lut[k++]=i;
+  const maxValue=k-1;while(k<EXR_PIZ_USHORT_RANGE)lut[k++]=0;return maxValue;
+}
+function exrPizInitDecodeTable(table){for(let i=0;i<EXR_PIZ_HUF_DECSIZE;i++)table[i]={len:0,lit:0,p:null};}
+function exrPizGetBits(nBits,c,lc,bytes,pos){
+  while(lc<nBits){c=(c<<8)|exrPizReadU8(bytes,pos);lc+=8;}
+  lc-=nBits;return {bits:(c>>>lc)&((1<<nBits)-1),c,lc};
+}
+function exrPizGetByte(c,lc,bytes,pos){c=(c<<8)|exrPizReadU8(bytes,pos);lc+=8;return {c,lc};}
+function exrPizOutputCode(symbol,runSymbol,c,lc,bytes,pos,out,outPos,outEnd){
+  if(symbol===runSymbol){
+    if(lc<8){const q=exrPizGetByte(c,lc,bytes,pos);c=q.c;lc=q.lc;}
+    lc-=8;let count=(c>>>lc)&255;
+    if(outPos.value+count>outEnd||outPos.value<1)return null;
+    const value=out[outPos.value-1];while(count-->0)out[outPos.value++]=value;
+  }else if(outPos.value<outEnd)out[outPos.value++]=symbol;else return null;
+  return {c,lc};
+}
+function exrPizCanonicalCodeTable(hcode){
+  exrPizCodeCount.fill(0);
+  for(let i=0;i<EXR_PIZ_HUF_ENCSIZE;i++)exrPizCodeCount[hcode[i]]++;
+  let c=0;
+  for(let i=EXR_PIZ_HUF_CODELEN-1;i>0;--i){const nc=(c+exrPizCodeCount[i])>>1;exrPizCodeCount[i]=c;c=nc;}
+  for(let i=0;i<EXR_PIZ_HUF_ENCSIZE;i++){const l=hcode[i];if(l>0)hcode[i]=l|(exrPizCodeCount[l]++<<6);}
+}
+function exrPizUnpackEncodingTable(bytes,pos,nBytes,im,iM,hcode){
+  const start=pos.value;let c=0,lc=0;
+  for(let i=im;i<=iM;i++){
+    if(pos.value-start>nBytes)throw new Error('OpenEXR PIZ Huffman table is truncated.');
+    let q=exrPizGetBits(6,c,lc,bytes,pos);let l=q.bits;c=q.c;lc=q.lc;hcode[i]=l;
+    if(l===EXR_PIZ_LONGEST_LONG_RUN){
+      q=exrPizGetBits(8,c,lc,bytes,pos);let zerun=q.bits+EXR_PIZ_MIN_LONG_RUN;c=q.c;lc=q.lc;
+      if(i+zerun>iM+1)throw new Error('OpenEXR PIZ Huffman table contains an invalid zero run.');
+      while(zerun-->0)hcode[i++]=0;i--;
+    }else if(l>=EXR_PIZ_SHORTEST_LONG_RUN){
+      let zerun=l-EXR_PIZ_SHORTEST_LONG_RUN+2;
+      if(i+zerun>iM+1)throw new Error('OpenEXR PIZ Huffman table contains an invalid zero run.');
+      while(zerun-->0)hcode[i++]=0;i--;
+    }
+  }
+  exrPizCanonicalCodeTable(hcode);
+}
+function exrPizHufLength(code){return code&63;}
+function exrPizHufCode(code){return code>>>6;}
+function exrPizBuildDecodeTable(hcode,im,iM,hdec){
+  for(let i=im;i<=iM;i++){
+    const code=exrPizHufCode(hcode[i]),len=exrPizHufLength(hcode[i]);
+    if((code>>>len)!==0)throw new Error('OpenEXR PIZ contains an invalid Huffman table entry.');
+    if(len>EXR_PIZ_HUF_DECBITS){
+      const entry=hdec[code>>>(len-EXR_PIZ_HUF_DECBITS)];if(entry.len)throw new Error('OpenEXR PIZ contains an invalid Huffman decode table.');
+      entry.lit++;
+      if(entry.p){const old=entry.p;entry.p=new Array(entry.lit);for(let j=0;j<entry.lit-1;j++)entry.p[j]=old[j];}else entry.p=new Array(1);
+      entry.p[entry.lit-1]=i;
+    }else if(len){
+      let j=0;for(let count=1<<(EXR_PIZ_HUF_DECBITS-len);count>0;count--){
+        const entry=hdec[(code<<(EXR_PIZ_HUF_DECBITS-len))+j];if(entry.len||entry.p)throw new Error('OpenEXR PIZ contains an invalid Huffman decode table.');
+        entry.len=len;entry.lit=i;j++;
+      }
+    }
+  }
+}
+function exrPizHufDecode(hcode,hdec,bytes,pos,nBits,runSymbol,outEnd,out,outPos){
+  let c=0,lc=0;const byteEnd=Math.trunc(pos.value+(nBits+7)/8);
+  while(pos.value<byteEnd){
+    let q=exrPizGetByte(c,lc,bytes,pos);c=q.c;lc=q.lc;
+    while(lc>=EXR_PIZ_HUF_DECBITS){
+      const entry=hdec[(c>>>(lc-EXR_PIZ_HUF_DECBITS))&EXR_PIZ_HUF_DECMASK];
+      if(entry.len){
+        lc-=entry.len;const r=exrPizOutputCode(entry.lit,runSymbol,c,lc,bytes,pos,out,outPos,outEnd);if(!r)throw new Error('OpenEXR PIZ Huffman output overflow.');c=r.c;lc=r.lc;
+      }else{
+        if(!entry.p)throw new Error('OpenEXR PIZ Huffman decode failed.');let matched=false;
+        for(let j=0;j<entry.lit;j++){
+          const symbol=entry.p[j],len=exrPizHufLength(hcode[symbol]);
+          while(lc<len&&pos.value<byteEnd){q=exrPizGetByte(c,lc,bytes,pos);c=q.c;lc=q.lc;}
+          if(lc>=len&&exrPizHufCode(hcode[symbol])===((c>>>(lc-len))&((1<<len)-1))){
+            lc-=len;const r=exrPizOutputCode(symbol,runSymbol,c,lc,bytes,pos,out,outPos,outEnd);if(!r)throw new Error('OpenEXR PIZ Huffman output overflow.');c=r.c;lc=r.lc;matched=true;break;
+          }
+        }
+        if(!matched)throw new Error('OpenEXR PIZ Huffman decode failed.');
+      }
+    }
+  }
+  const pad=(8-nBits)&7;c>>>=pad;lc-=pad;
+  while(lc>0){
+    const entry=hdec[(c<<(EXR_PIZ_HUF_DECBITS-lc))&EXR_PIZ_HUF_DECMASK];
+    if(!entry.len)throw new Error('OpenEXR PIZ Huffman tail decode failed.');
+    lc-=entry.len;const r=exrPizOutputCode(entry.lit,runSymbol,c,lc,bytes,pos,out,outPos,outEnd);if(!r)throw new Error('OpenEXR PIZ Huffman output overflow.');c=r.c;lc=r.lc;
+  }
+}
+function exrPizHufUncompress(bytes,dv,pos,nBytes,out,nOut){
+  const outPos={value:0},start=pos.value,im=exrPizReadU32(dv,pos),iM=exrPizReadU32(dv,pos);pos.value+=4;const nBits=exrPizReadU32(dv,pos);pos.value+=4;
+  if(im<0||im>=EXR_PIZ_HUF_ENCSIZE||iM<0||iM>=EXR_PIZ_HUF_ENCSIZE||im>iM)throw new Error('OpenEXR PIZ has an invalid Huffman symbol range.');
+  const hcode=new Array(EXR_PIZ_HUF_ENCSIZE).fill(0),hdec=new Array(EXR_PIZ_HUF_DECSIZE);exrPizInitDecodeTable(hdec);
+  const remaining=nBytes-(pos.value-start);exrPizUnpackEncodingTable(bytes,pos,remaining,im,iM,hcode);
+  if(nBits>8*(nBytes-(pos.value-start)))throw new Error('OpenEXR PIZ has an invalid Huffman bit count.');
+  exrPizBuildDecodeTable(hcode,im,iM,hdec);exrPizHufDecode(hcode,hdec,bytes,pos,nBits,iM,nOut,out,outPos);
+  if(outPos.value!==nOut)throw new Error(`OpenEXR PIZ decoded ${outPos.value} words; expected ${nOut}.`);
+}
+function exrPizU16(v){return v&65535;}
+function exrPizI16(v){const n=v&65535;return n>32767?n-65536:n;}
+function exrPizWav14(a,b){const ai=exrPizI16(a),bi=exrPizI16(b),aa=ai+(bi&1)+(bi>>1);return {a:aa,b:aa-bi};}
+function exrPizWav16(a,b){const av=exrPizU16(a),bv=exrPizU16(b),r=(av-(bv>>1))&65535;return {a:(bv+r-32768)&65535,b:r};}
+function exrPizWaveletDecode(buffer,offset,nx,ox,ny,oy,maxValue){
+  const use14=maxValue<16384,n=Math.min(nx,ny);let p=1;while(p<=n)p<<=1;p>>=1;let p2=p;p>>=1;
+  while(p>=1){
+    let py=0;const ey=oy*(ny-p2),oy1=oy*p,oy2=oy*p2,ox1=ox*p,ox2=ox*p2;
+    while(py<=ey){
+      let px=py,ex=py+ox*(nx-p2);
+      while(px<=ex){
+        const p01=px+ox1,p10=px+oy1,p11=p10+ox1;let a,b,c,d,w;
+        w=use14?exrPizWav14(buffer[offset+px],buffer[offset+p10]):exrPizWav16(buffer[offset+px],buffer[offset+p10]);a=w.a;c=w.b;
+        w=use14?exrPizWav14(buffer[offset+p01],buffer[offset+p11]):exrPizWav16(buffer[offset+p01],buffer[offset+p11]);b=w.a;d=w.b;
+        w=use14?exrPizWav14(a,b):exrPizWav16(a,b);buffer[offset+px]=w.a;buffer[offset+p01]=w.b;
+        w=use14?exrPizWav14(c,d):exrPizWav16(c,d);buffer[offset+p10]=w.a;buffer[offset+p11]=w.b;
+        px+=ox2;
+      }
+      if(nx&p){const p10=px+oy1,w=use14?exrPizWav14(buffer[offset+px],buffer[offset+p10]):exrPizWav16(buffer[offset+px],buffer[offset+p10]);buffer[offset+px]=w.a;buffer[offset+p10]=w.b;}
+      py+=oy2;
+    }
+    if(ny&p){
+      let px=py,ex=py+ox*(nx-p2);while(px<=ex){const p01=px+ox1,w=use14?exrPizWav14(buffer[offset+px],buffer[offset+p01]):exrPizWav16(buffer[offset+px],buffer[offset+p01]);buffer[offset+px]=w.a;buffer[offset+p01]=w.b;px+=ox2;}
+    }
+    p2=p;p>>=1;
+  }
+}
+function exrPizApplyLut(lut,data,count){for(let i=0;i<count;i++)data[i]=lut[data[i]];}
+function inflateOpenExrPiz(payload,width,lines,channels){
+  const bytes=payload instanceof Uint8Array?payload:new Uint8Array(payload),dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),pos={value:0};
+  const channelInfo=[];let wordCount=0;
+  for(const ch of channels){const words=ch.bytesPerSample>>1,info={start:wordCount,end:wordCount,nx:width,ny:lines,size:words};channelInfo.push(info);wordCount+=width*lines*words;}
+  const bitmap=new Uint8Array(EXR_PIZ_BITMAP_SIZE),minNonZero=exrPizReadU16(dv,pos),maxNonZero=exrPizReadU16(dv,pos);
+  if(maxNonZero>=EXR_PIZ_BITMAP_SIZE)throw new Error('OpenEXR PIZ bitmap range is invalid.');
+  if(minNonZero<=maxNonZero){const count=maxNonZero-minNonZero+1;if(pos.value+count>bytes.length)throw new Error('OpenEXR PIZ bitmap is truncated.');bitmap.set(bytes.subarray(pos.value,pos.value+count),minNonZero);pos.value+=count;}
+  const lut=new Uint16Array(EXR_PIZ_USHORT_RANGE),maxValue=exrPizReverseLutFromBitmap(bitmap,lut),hufBytes=exrPizReadU32(dv,pos),words=new Uint16Array(wordCount);
+  if(pos.value+hufBytes>bytes.length)throw new Error('OpenEXR PIZ Huffman payload is truncated.');
+  exrPizHufUncompress(bytes,dv,pos,hufBytes,words,wordCount);
+  for(const info of channelInfo)for(let plane=0;plane<info.size;plane++)exrPizWaveletDecode(words,info.start+plane,info.nx,info.size,info.ny,info.nx*info.size,maxValue);
+  exrPizApplyLut(lut,words,wordCount);
+  const out=new Uint8Array(wordCount*2);let op=0;
+  for(let row=0;row<lines;row++)for(const info of channelInfo){const wordsPerRow=info.nx*info.size,startWord=info.end;out.set(new Uint8Array(words.buffer,words.byteOffset+startWord*2,wordsPerRow*2),op);op+=wordsPerRow*2;info.end+=wordsPerRow;}
+  return out;
+}
+
+function exrChannelRole(name){
+  const n=String(name||'').toUpperCase();
+  if(n==='R'||n.endsWith('.R'))return 'r';if(n==='G'||n.endsWith('.G'))return 'g';if(n==='B'||n.endsWith('.B'))return 'b';if(n==='Y'||n.endsWith('.Y'))return 'y';return '';
+}
+function readExrSample(dv,offset,pixelType){
+  if(pixelType===1)return halfToFloat(dv.getUint16(offset,true));
+  if(pixelType===2)return dv.getFloat32(offset,true);
+  if(pixelType===0)return dv.getUint32(offset,true);
+  throw new Error(`Unsupported OpenEXR pixel type ${pixelType}.`);
+}
+function exrCompressionName(compression){
+  return ({0:'NONE',1:'RLE',2:'ZIPS',3:'ZIP',4:'PIZ',5:'PXR24',6:'B44',7:'B44A',8:'DWAA',9:'DWAB'})[compression]||`UNKNOWN(${compression})`;
+}
+function exrDecodeRawBlock(raw,width,rows,channels,hasRgb,hasY,onPixel){
+  const rdv=new DataView(raw.buffer,raw.byteOffset,raw.byteLength);let rp=0;
+  for(let rr=0;rr<rows;rr++){
+    const rRow=new Float32Array(width),gRow=new Float32Array(width),bRow=new Float32Array(width),yRow=hasY?new Float32Array(width):null;
+    for(const ch of channels){
+      const base=rp,step=ch.bytesPerSample;
+      if(ch.role){
+        for(let x=0;x<width;x++){
+          const val=readExrSample(rdv,base+x*step,ch.pixelType);
+          if(ch.role==='r')rRow[x]=val;else if(ch.role==='g')gRow[x]=val;else if(ch.role==='b')bRow[x]=val;else if(ch.role==='y')yRow[x]=val;
+        }
+      }
+      rp+=width*step;
+    }
+    for(let x=0;x<width;x++){
+      const yy=hasY?yRow[x]:0;
+      onPixel(rr,x,hasRgb?rRow[x]:yy,hasRgb?gRow[x]:yy,hasRgb?bRow[x]:yy);
+    }
+  }
+}
+async function exrMaybeInflate(raw,rawSize,compression,width,rows,channels){
+  if(raw.length===rawSize)return raw;
+  if(raw.length>rawSize)throw new Error(`OpenEXR packed block size ${raw.length} exceeds expected raw size ${rawSize}.`);
+  if(compression===2||compression===3)return await inflateOpenExrZip(raw);
+  if(compression===4)return inflateOpenExrPiz(raw,width,rows,channels);
+  throw new Error(`OpenEXR ${exrCompressionName(compression)} block requires a decoder that is not available in this offline build.`);
+}
+async function parseOpenExr(buffer){
+  const bytes=new Uint8Array(buffer),dv=new DataView(buffer);
+  if(bytes.length<16||dv.getUint32(0,true)!==EXR_MAGIC)throw new Error('OpenEXR magic number was not recognized.');
+  const versionField=dv.getUint32(4,true),version=versionField&255;
+  if(version!==2)throw new Error(`OpenEXR file-format version ${version} is not supported. Current OpenEXR 2.x/3.x software normally writes file-format version 2; this file uses a different on-disk version.`);
+  const isTiled=!!(versionField&0x200),hasLongNames=!!(versionField&0x400),isDeep=!!(versionField&0x800),isMultipart=!!(versionField&0x1000);
+  if(isDeep)throw new Error('This OpenEXR uses deep/non-image data. Tab 2 requires a regular 2D RGB/Y environment image.');
+  if(isMultipart)throw new Error('This OpenEXR is multipart. Import currently supports one regular image part at a time.');
+  const attrs={},state={pos:8};
+  while(state.pos<bytes.length){
+    const name=readExrCString(bytes,state);if(!name)break;
+    const type=readExrCString(bytes,state);if(state.pos+4>bytes.length)throw new Error('OpenEXR attribute size is truncated.');
+    const size=dv.getUint32(state.pos,true);state.pos+=4;if(state.pos+size>bytes.length)throw new Error(`OpenEXR attribute ${name} is truncated.`);
+    attrs[name]={type,start:state.pos,size};state.pos+=size;
+  }
+  const chAttr=attrs.channels,winAttr=attrs.dataWindow,compAttr=attrs.compression;
+  if(!chAttr||!winAttr||!compAttr)throw new Error('OpenEXR header is missing channels, dataWindow, or compression metadata.');
+  if(winAttr.size<16)throw new Error('OpenEXR dataWindow is invalid.');
+  const xMin=dv.getInt32(winAttr.start,true),yMin=dv.getInt32(winAttr.start+4,true),xMax=dv.getInt32(winAttr.start+8,true),yMax=dv.getInt32(winAttr.start+12,true);
+  const width=xMax-xMin+1,height=yMax-yMin+1;if(width<1||height<1||width>32768||height>32768)throw new Error('OpenEXR dimensions are invalid or unsupported.');
+  const compression=bytes[compAttr.start];
+  if(![0,2,3,4].includes(compression))throw new Error(`OpenEXR compression ${exrCompressionName(compression)} is not supported offline. Supported compression: NONE, ZIPS, ZIP, or PIZ.`);
+  const lineOrder=attrs.lineOrder?bytes[attrs.lineOrder.start]:0;
+  if(![0,1,2].includes(lineOrder))throw new Error(`OpenEXR lineOrder ${lineOrder} is invalid or unsupported.`);
+  const channels=[],cs={pos:chAttr.start},chEnd=chAttr.start+chAttr.size;
+  while(cs.pos<chEnd&&bytes[cs.pos]!==0){
+    const name=readExrCString(bytes,cs,chEnd);if(cs.pos+16>chEnd)throw new Error('OpenEXR channel list is truncated.');
+    const pixelType=dv.getInt32(cs.pos,true);cs.pos+=4;cs.pos+=4;const xSampling=dv.getInt32(cs.pos,true);cs.pos+=4;const ySampling=dv.getInt32(cs.pos,true);cs.pos+=4;
+    if(![0,1,2].includes(pixelType))throw new Error(`OpenEXR channel ${name} uses unsupported pixel type ${pixelType}.`);
+    if(xSampling!==1||ySampling!==1)throw new Error(`OpenEXR channel ${name} uses subsampling. RGB environment import requires 1×1 channel sampling.`);
+    channels.push({name,pixelType,bytesPerSample:pixelType===1?2:4,role:exrChannelRole(name)});
+  }
+  const hasRgb=channels.some(c=>c.role==='r')&&channels.some(c=>c.role==='g')&&channels.some(c=>c.role==='b'),hasY=channels.some(c=>c.role==='y');
+  if(!hasRgb&&!hasY)throw new Error('OpenEXR does not contain recognizable RGB or Y channels.');
+  const rgbe=new Uint8Array(width*height*4);
+  const storePixel=(y,x,r,g,b)=>{
+    if(x<0||x>=width||y<0||y>=height)return;
+    const e=linearRgbToRgbe(r,g,b),di=(y*width+x)*4;rgbe[di]=e[0];rgbe[di+1]=e[1];rgbe[di+2]=e[2];rgbe[di+3]=e[3];
+  };
+
+  let storage='scanline',tileSize=null;
+  if(isTiled){
+    const tileAttr=attrs.tiles;
+    if(!tileAttr||tileAttr.size<9)throw new Error('OpenEXR tiled file is missing a valid tiles attribute.');
+    const tileW=dv.getUint32(tileAttr.start,true),tileH=dv.getUint32(tileAttr.start+4,true),modeByte=bytes[tileAttr.start+8],levelMode=modeByte&15;
+    if(!tileW||!tileH)throw new Error('OpenEXR tile dimensions are invalid.');
+    if(levelMode!==0)throw new Error('OpenEXR mipmap/ripmap tiled images are not supported. One-level tiled EXR is supported.');
+    const nx=Math.ceil(width/tileW),ny=Math.ceil(height/tileH),chunkCount=nx*ny;
+    if(state.pos+chunkCount*8>bytes.length)throw new Error('OpenEXR tile offset table is truncated.');
+    const offsets=[];for(let i=0;i<chunkCount;i++){const p=state.pos+i*8,lo=dv.getUint32(p,true),hi=dv.getUint32(p+4,true);offsets.push(lo+hi*4294967296);}
+    for(const off of offsets){
+      if(!Number.isSafeInteger(off)||off<0||off+20>bytes.length)throw new Error('OpenEXR tile chunk offset is invalid.');
+      const tx=dv.getInt32(off,true),ty=dv.getInt32(off+4,true),lx=dv.getInt32(off+8,true),ly=dv.getInt32(off+12,true),packedSize=dv.getUint32(off+16,true),dataStart=off+20;
+      if(lx!==0||ly!==0)throw new Error('OpenEXR tiled chunk references a non-zero mip/rip level.');
+      if(tx<0||ty<0||tx>=nx||ty>=ny)throw new Error('OpenEXR tile coordinates are outside the dataWindow.');
+      if(dataStart+packedSize>bytes.length)throw new Error('OpenEXR tile chunk is truncated.');
+      const px0=tx*tileW,py0=ty*tileH,cw=Math.min(tileW,width-px0),ch=Math.min(tileH,height-py0);
+      const rawSize=channels.reduce((n,c)=>n+c.bytesPerSample*cw,0)*ch;
+      let raw=bytes.slice(dataStart,dataStart+packedSize);raw=await exrMaybeInflate(raw,rawSize,compression,cw,ch,channels);
+      if(raw.length!==rawSize)throw new Error(`OpenEXR decoded tile size ${raw.length} does not match expected ${rawSize} bytes.`);
+      exrDecodeRawBlock(raw,cw,ch,channels,hasRgb,hasY,(rr,x,r,g,b)=>storePixel(py0+rr,px0+x,r,g,b));
+    }
+    storage='tiled one-level';tileSize=`${tileW} × ${tileH}`;
+  }else{
+    const rowBytes=channels.reduce((n,c)=>n+c.bytesPerSample*width,0),linesPerChunk=compression===4?32:compression===3?16:1,chunkCount=Math.ceil(height/linesPerChunk);
+    if(state.pos+chunkCount*8>bytes.length)throw new Error('OpenEXR scanline offset table is truncated.');
+    const offsets=[];for(let i=0;i<chunkCount;i++){const p=state.pos+i*8,lo=dv.getUint32(p,true),hi=dv.getUint32(p+4,true);offsets.push(lo+hi*4294967296);}
+    for(const off of offsets){
+      if(!Number.isSafeInteger(off)||off<0||off+8>bytes.length)throw new Error('OpenEXR chunk offset is invalid.');
+      const yStart=dv.getInt32(off,true),packedSize=dv.getUint32(off+4,true),dataStart=off+8;if(dataStart+packedSize>bytes.length)throw new Error('OpenEXR scanline chunk is truncated.');
+      let blockRows;
+      if(lineOrder===1)blockRows=Math.max(1,Math.min(linesPerChunk,yStart-yMin+1));
+      else blockRows=Math.max(1,Math.min(linesPerChunk,yMax-yStart+1));
+      const rawSize=rowBytes*blockRows;
+      let raw=bytes.slice(dataStart,dataStart+packedSize);raw=await exrMaybeInflate(raw,rawSize,compression,width,blockRows,channels);
+      if(raw.length!==rawSize)throw new Error(`OpenEXR decompressed scanline size ${raw.length} does not match expected ${rawSize} bytes.`);
+      exrDecodeRawBlock(raw,width,blockRows,channels,hasRgb,hasY,(rr,x,r,g,b)=>{
+        const yAbs=lineOrder===1?yStart-rr:yStart+rr;storePixel(yAbs-yMin,x,r,g,b);
+      });
+    }
+  }
+  return {
+    width,height,rgbe,format:'exr',version,versionField,
+    compression,compressionName:exrCompressionName(compression),
+    storage,tileSize,longNames:hasLongNames,lineOrder,
+    channelSummary:channels.map(c=>`${c.name}:${c.pixelType===1?'HALF':c.pixelType===2?'FLOAT':'UINT'}`).join(', ')
+  };
+}
+
+function concatByteArrays(parts){const total=parts.reduce((n,p)=>n+p.length,0),out=new Uint8Array(total);let o=0;for(const p of parts){out.set(p,o);o+=p.length;}return out;}
+function exrCStringBytes(text){const t=new TextEncoder().encode(text),out=new Uint8Array(t.length+1);out.set(t);return out;}
+function exrU32Bytes(v){const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,v,true);return b;}
+function exrI32Bytes(v){const b=new Uint8Array(4);new DataView(b.buffer).setInt32(0,v,true);return b;}
+function exrF32Bytes(v){const b=new Uint8Array(4);new DataView(b.buffer).setFloat32(0,v,true);return b;}
+function exrAttributeBytes(name,type,data){return concatByteArrays([exrCStringBytes(name),exrCStringBytes(type),exrU32Bytes(data.length),data]);}
+function makeOpenExrHeader(width,height){
+  const magic=new Uint8Array(8),mdv=new DataView(magic.buffer);mdv.setUint32(0,EXR_MAGIC,true);mdv.setUint32(4,2,true);
+  const ch=[];for(const name of ['R','G','B']){ch.push(exrCStringBytes(name),exrI32Bytes(1),new Uint8Array(4),exrI32Bytes(1),exrI32Bytes(1));}ch.push(new Uint8Array([0]));
+  const box=concatByteArrays([exrI32Bytes(0),exrI32Bytes(0),exrI32Bytes(width-1),exrI32Bytes(height-1)]);
+  const chroma=new Uint8Array(32),cdv=new DataView(chroma.buffer),vals=[0.64,0.33,0.30,0.60,0.15,0.06,0.3127,0.3290];vals.forEach((v,i)=>cdv.setFloat32(i*4,v,true));
+  return concatByteArrays([magic,
+    exrAttributeBytes('channels','chlist',concatByteArrays(ch)),
+    exrAttributeBytes('compression','compression',new Uint8Array([0])),
+    exrAttributeBytes('dataWindow','box2i',box),exrAttributeBytes('displayWindow','box2i',box),
+    exrAttributeBytes('lineOrder','lineOrder',new Uint8Array([0])),
+    exrAttributeBytes('pixelAspectRatio','float',exrF32Bytes(1)),
+    exrAttributeBytes('screenWindowCenter','v2f',concatByteArrays([exrF32Bytes(0),exrF32Bytes(0)])),
+    exrAttributeBytes('screenWindowWidth','float',exrF32Bytes(1)),
+    exrAttributeBytes('chromaticities','chromaticities',chroma),new Uint8Array([0])]);
+}
+function writeExrOffset64(view,offset,value){view.setUint32(offset,value>>>0,true);view.setUint32(offset+4,Math.floor(value/4294967296),true);}
+
+function makeHdrToneMappedCanvas(hdr){
+  const maxW=2048,scale=Math.min(1,maxW/hdr.width),w=Math.max(1,Math.round(hdr.width*scale)),h=Math.max(1,Math.round(hdr.height*scale));
+  let logSum=0,n=0;const stride=Math.max(1,Math.floor(Math.sqrt((hdr.width*hdr.height)/12000)));
+  for(let y=0;y<hdr.height;y+=stride)for(let x=0;x<hdr.width;x+=stride){const i=(y*hdr.width+x)*4,c=decodeRgbePixel(hdr.rgbe[i],hdr.rgbe[i+1],hdr.rgbe[i+2],hdr.rgbe[i+3]);const l=0.2126*c[0]+0.7152*c[1]+0.0722*c[2];if(l>1e-8){logSum+=Math.log(l);n++;}}
+  const logAvg=n?Math.exp(logSum/n):0.18,exposure=0.18/Math.max(1e-6,logAvg);
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');const img=ctx.createImageData(w,h),d=img.data;
+  const aces=x=>Math.max(0,Math.min(1,(x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14)));
+  for(let y=0;y<h;y++){const sy=Math.min(hdr.height-1,Math.floor((y+0.5)*hdr.height/h));for(let x=0;x<w;x++){const sx=Math.min(hdr.width-1,Math.floor((x+0.5)*hdr.width/w));const si=(sy*hdr.width+sx)*4,c=decodeRgbePixel(hdr.rgbe[si],hdr.rgbe[si+1],hdr.rgbe[si+2],hdr.rgbe[si+3]),di=(y*w+x)*4;d[di]=Math.round(Math.pow(aces(c[0]*exposure),1/2.2)*255);d[di+1]=Math.round(Math.pow(aces(c[1]*exposure),1/2.2)*255);d[di+2]=Math.round(Math.pow(aces(c[2]*exposure),1/2.2)*255);d[di+3]=255;}}
+  ctx.putImageData(img,0,0);return canvas;
+}
+
+function buildHdrExrImportInfo(file,radiance){
+  const sizeText=file&&Number.isFinite(file.size)?`${(file.size/1048576).toFixed(file.size>=10485760?1:2)} MiB`:'Unknown';
+  const common=[`File: ${file?.name||'Unknown'}`,`Size: ${sizeText}`,`Resolution: ${radiance.width} × ${radiance.height}`];
+  if(radiance.format==='exr'){
+    return [
+      ...common,
+      `Format: OpenEXR · file-format v${radiance.version}`,
+      `Storage: ${radiance.storage}${radiance.tileSize?` · tile ${radiance.tileSize}`:''}`,
+      `Compression: ${radiance.compressionName}`,
+      `Channels: ${radiance.channelSummary}`,
+      `Long channel/name flag: ${radiance.longNames?'Yes':'No'}`,
+      `Line order: ${radiance.lineOrder===0?'Increasing Y':radiance.lineOrder===1?'Decreasing Y':'Random Y'}`,
+      'Compatibility: Loaded successfully. OpenEXR software/library 3.x files are supported when their on-disk file-format remains v2 and they use the supported image features above.',
+      'Radiance handling: Scene-linear data preserved for HDR processing; tone mapping is preview-only.'
+    ].join('\n');
+  }
+  return [
+    ...common,
+    `Format: Radiance HDR · ${radiance.radianceFormat}`,
+    `Signature: ${radiance.signature}`,
+    `Encoding: ${radiance.sourceEncoding}`,
+    `Scanlines: ${radiance.compression}`,
+    `Orientation: ${radiance.orientation}`,
+    radiance.convertedFromXyze?'Color handling: CIE XYZE decoded and converted to linear RGB for the panorama pipeline.':'Color handling: RGBE decoded as scene-linear radiance.',
+    'Compatibility: Loaded successfully. Radiance HDR has no EXR-style numbered file-format generation; compatibility is determined by its RGBE/XYZE header and scanline encoding.'
+  ].join('\n');
+}
+
+function inspectHdrExrFailure(buffer,fileName,error){
+  const lines=[`File: ${fileName||'Unknown'}`,'Status: Import rejected',`Reason: ${String(error?.message||error||'Unknown error')}`];
+  try{
+    const bytes=new Uint8Array(buffer),dv=new DataView(buffer);
+    if(bytes.length>=8&&dv.getUint32(0,true)===EXR_MAGIC){
+      const vf=dv.getUint32(4,true),v=vf&255,flags=[];
+      if(vf&0x200)flags.push('tiled');if(vf&0x400)flags.push('long names');if(vf&0x800)flags.push('deep/non-image');if(vf&0x1000)flags.push('multipart');
+      lines.push(`Detected: OpenEXR file-format v${v}`);
+      lines.push(`Feature flags: ${flags.length?flags.join(', '):'single-part scanline/basic'}`);
+      if(v!==2)lines.push('Note: Newer OpenEXR software versions normally still use on-disk file-format v2; a higher software/library version is not the same as a higher file-format version.');
+    }else{
+      const probe=new TextDecoder('ascii').decode(bytes.subarray(0,Math.min(bytes.length,65536)));
+      const sig=(/^\s*(#\?[^\r\n]+)/m.exec(probe)||[])[1],fmt=(/^FORMAT\s*=\s*([^\r\n]+)/im.exec(probe)||[])[1],res=/([+-][XY]\s+\d+\s+[+-][XY]\s+\d+)/m.exec(probe);
+      lines.push(`Detected: ${sig||'Radiance/HDR-like data'}`);
+      if(fmt)lines.push(`FORMAT: ${fmt.trim()}`);
+      if(res)lines.push(`Resolution/orientation: ${res[1]}`);
+    }
+  }catch{}
+  return lines.join('\n');
+}
+
+async function loadHdrFile(file,input){
+  if(!file)return;
+  let buffer=null;
+  try{
+    buffer=await file.arrayBuffer();
+    const isExr=/\.exr$/i.test(file.name)||(buffer.byteLength>=4&&new DataView(buffer).getUint32(0,true)===EXR_MAGIC);
+    const radiance=isExr?await parseOpenExr(buffer):parseRadianceHdr(buffer);
+    const preview=makeHdrToneMappedCanvas(radiance);
+    revokeImageObjectUrl(panoramaState.image);
+    panoramaState.image=preview;
+    panoramaState.imageName=file.name;
+    panoramaState.radianceSource=radiance;
+    panoramaState.lastHdrExrImportInfo=buildHdrExrImportInfo(file,radiance);
+    panoramaState.textureDirty=true;
+    $("panoramaFileInput").value="";
+    $("panoramaClearBtn").disabled=false;
+    $("panoHdrInfoBtn").disabled=false;
+    $("panoramaEmptyState").classList.add("hidden");
+    analyzePanoramaSourceSeam();
+    updatePanoramaSourceStatus();
+    updatePanoramaLabels();
+    updatePanoramaValidation();
+    if(state.activeWorkspace==="panoramic"){
+      requestPanoramaRender('low');
+      schedulePanoramaFinalRender();
+    }else schedulePanoramaPrewarm(250);
+    showToast(`Tab 2 opened ${radiance.format==='exr'?'EXR':'HDR'} ${file.name} · ${radiance.width} × ${radiance.height}`);
+    openModal('HDR / EXR Import Info',panoramaState.lastHdrExrImportInfo,null,'Close');
+  }catch(err){
+    if(input)input.value='';
+    panoramaState.lastHdrExrImportInfo="";
+    $("panoHdrInfoBtn").disabled=true;
+    openModal('HDR / EXR open failed',inspectHdrExrFailure(buffer||new ArrayBuffer(0),file?.name,err),null,'Close');
+  }
+}
+
+$("panoHdrInfoBtn").addEventListener("click",()=>{
+  if(!panoramaState.lastHdrExrImportInfo)return;
+  openModal("HDR / EXR Import Info",panoramaState.lastHdrExrImportInfo,null,"Close");
+});
+
+$("panoHdrFileInput").addEventListener("change",e=>{
+  const file=e.target.files&&e.target.files[0];
+  loadHdrFile(file,e.target);
+});
+
+$("fileInput").addEventListener("change",e=>{
+  const file=e.target.files&&e.target.files[0];
+  loadSphericalBitmapFile(file,e.target);
+});
+
+$("panoramaFileInput").addEventListener("change",e=>{
+  const file=e.target.files&&e.target.files[0];
+  loadPanoramaBitmapFile(file,e.target);
+});
+
+
+/* ---------- Native WebGL engine: no external library ---------- */
+
+function compileShader(gl, type, source){
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, source);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+    const log = gl.getShaderInfoLog(sh) || "Unknown shader error";
+    gl.deleteShader(sh);
+    throw new Error(log);
+  }
+  return sh;
+}
+
+function createProgram(gl, vsSource, fsSource){
+  const vs = compileShader(gl, gl.VERTEX_SHADER, vsSource);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSource);
+  const program = gl.createProgram();
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  gl.deleteShader(vs);
+  gl.deleteShader(fs);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)){
+    const log = gl.getProgramInfoLog(program) || "Unknown program link error";
+    gl.deleteProgram(program);
+    throw new Error(log);
+  }
+  return program;
+}
+
+function createSphereGeometry(latBands=96, lonBands=128, radius=1.35){
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
+
+  for(let y=0; y<=latBands; y++){
+    const v = y / latBands;
+    const theta = v * Math.PI;
+    const sinT = Math.sin(theta);
+    const cosT = Math.cos(theta);
+
+    for(let x=0; x<=lonBands; x++){
+      const u = x / lonBands;
+      const phi = u * Math.PI * 2;
+      const sinP = Math.sin(phi);
+      const cosP = Math.cos(phi);
+
+      const nx = sinT * sinP;
+      const ny = cosT;
+      const nz = sinT * cosP;
+
+      positions.push(radius*nx, radius*ny, radius*nz);
+      normals.push(nx,ny,nz);
+      // Flip U so imported image orientation matches common equirectangular expectations.
+      uvs.push(1-u, v);
+    }
+  }
+
+  for(let y=0; y<latBands; y++){
+    for(let x=0; x<lonBands; x++){
+      const a = y*(lonBands+1)+x;
+      const b = a+lonBands+1;
+      indices.push(a,b,a+1, b,b+1,a+1);
+    }
+  }
+  return {
+    positions:new Float32Array(positions),
+    normals:new Float32Array(normals),
+    uvs:new Float32Array(uvs),
+    indices:new Uint16Array(indices)
+  };
+}
+
+function makeBuffer(gl, target, data, usage=gl.STATIC_DRAW){
+  const b = gl.createBuffer();
+  gl.bindBuffer(target,b);
+  gl.bufferData(target,data,usage);
+  return b;
+}
+
+function mat4Identity(){
+  return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
+}
+function mat4Multiply(a,b){
+  const out = new Float32Array(16);
+  for(let r=0;r<4;r++){
+    for(let c=0;c<4;c++){
+      out[c*4+r] =
+        a[0*4+r]*b[c*4+0] +
+        a[1*4+r]*b[c*4+1] +
+        a[2*4+r]*b[c*4+2] +
+        a[3*4+r]*b[c*4+3];
+    }
+  }
+  return out;
+}
+function mat4Perspective(fovy, aspect, near, far){
+  const f = 1/Math.tan(fovy/2);
+  const nf = 1/(near-far);
+  return new Float32Array([
+    f/aspect,0,0,0,
+    0,f,0,0,
+    0,0,(far+near)*nf,-1,
+    0,0,(2*far*near)*nf,0
+  ]);
+}
+function mat4Translation(x,y,z){
+  const m = mat4Identity();
+  m[12]=x; m[13]=y; m[14]=z;
+  return m;
+}
+function mat4RotationX(a){
+  const c=Math.cos(a), s=Math.sin(a);
+  return new Float32Array([1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]);
+}
+function mat4RotationY(a){
+  const c=Math.cos(a), s=Math.sin(a);
+  return new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]);
+}
+function hexToRgb01(hex){
+  const clean = hex.replace("#","");
+  const n = parseInt(clean,16);
+  return [((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255];
+}
+
+function initNativeWebGL(){
+  const engineStatus = $("engineStatus");
+  try{
+    const viewport = $("viewport");
+    const canvas = document.createElement("canvas");
+    canvas.setAttribute("aria-label","Interactive native WebGL sphere");
+    viewport.prepend(canvas);
+
+    const gl = canvas.getContext("webgl", {
+      antialias:true,
+      alpha:false,
+      preserveDrawingBuffer:true,
+      powerPreference:"high-performance"
+    });
+    if (!gl) throw new Error("WebGL is not available or is disabled in this browser.");
+
+    const vs = `
+      attribute vec3 aPosition;
+      attribute vec3 aNormal;
+      attribute vec2 aUv;
+      uniform mat4 uMvp;
+      uniform mat4 uModel;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      void main(){
+        vec4 world = uModel * vec4(aPosition,1.0);
+        vWorldPos = world.xyz;
+        vNormal = normalize((uModel * vec4(aNormal,0.0)).xyz);
+        vUv = aUv;
+        gl_Position = uMvp * vec4(aPosition,1.0);
+      }
+    `;
+    const fs = `
+      precision mediump float;
+      uniform sampler2D uTexture;
+      uniform float uLightStrength;
+      uniform float uRoughness;
+      uniform float uNoLight;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      void main(){
+        vec3 n = normalize(vNormal);
+        vec3 keyDir = normalize(vec3(0.45,0.7,0.55));
+        vec3 fillDir = normalize(vec3(-0.7,-0.15,0.4));
+        float key = max(dot(n,keyDir),0.0);
+        float fill = max(dot(n,fillDir),0.0);
+        float hemi = n.y*0.18 + 0.58;
+        float diffuse = 0.34 + (key*0.54 + fill*0.18 + hemi*0.24) * uLightStrength;
+        float softness = mix(1.08,0.92,uRoughness);
+        vec3 tex = texture2D(uTexture,vUv).rgb;
+        if (uNoLight > 0.5) {
+          gl_FragColor = vec4(tex,1.0);
+          return;
+        }
+        vec3 lit = tex * clamp(diffuse*softness,0.28,1.45);
+        vec3 color = mix(lit, vec3(1.0), 0.045);
+        color = pow(color, vec3(1.0/2.2));
+        gl_FragColor = vec4(color,1.0);
+      }
+    `;
+    const program = createProgram(gl,vs,fs);
+    const geo = createSphereGeometry();
+
+    const buffers = {
+      position: makeBuffer(gl,gl.ARRAY_BUFFER,geo.positions),
+      normal: makeBuffer(gl,gl.ARRAY_BUFFER,geo.normals),
+      uv: makeBuffer(gl,gl.ARRAY_BUFFER,geo.uvs),
+      index: makeBuffer(gl,gl.ELEMENT_ARRAY_BUFFER,geo.indices),
+      count: geo.indices.length
+    };
+
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,texture);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+
+    state.canvas=canvas;
+    state.gl=gl;
+    state.program=program;
+    state.buffers=buffers;
+    state.texture=texture;
+    state.attribs = {
+      position: gl.getAttribLocation(program,"aPosition"),
+      normal: gl.getAttribLocation(program,"aNormal"),
+      uv: gl.getAttribLocation(program,"aUv")
+    };
+    state.uniforms = {
+      mvp: gl.getUniformLocation(program,"uMvp"),
+      model: gl.getUniformLocation(program,"uModel"),
+      texture: gl.getUniformLocation(program,"uTexture"),
+      lightStrength: gl.getUniformLocation(program,"uLightStrength"),
+      roughness: gl.getUniformLocation(program,"uRoughness"),
+      noLight: gl.getUniformLocation(program,"uNoLight")
+    };
+
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
+    gl.frontFace(gl.CCW);
+
+    installInteraction(canvas);
+    resizeRenderer();
+    renderUv();
+    state.glReady=true;
+
+    const ro = new ResizeObserver(resizeRenderer);
+    ro.observe(viewport);
+
+    engineStatus.classList.add("ready");
+    engineStatus.querySelector("span:last-child").textContent = "Native WebGL ready";
+
+    function animate(now){
+      state.animationId=requestAnimationFrame(animate);
+      const dt=Math.min(0.05,(now-state.lastTime)/1000 || 0);
+      state.lastTime=now;
+      if(document.hidden || !$("sphericalWorkspace").classList.contains("active")) return;
+      if(now-(state.lastPreviewFrame||0)<34)return;state.lastPreviewFrame=now;
+      if ($("autoRotate").checked) state.yaw += dt*0.45;
+      renderScene();
+    }
+    requestAnimationFrame(animate);
+  }catch(err){
+    engineStatus.classList.add("error");
+    engineStatus.querySelector("span:last-child").textContent = "WebGL unavailable";
+    openModal(
+      "Native WebGL could not start",
+      "This version has no CDN dependency and runs directly from file://. Your browser appears to have WebGL disabled or unavailable. Enable hardware acceleration/WebGL and reopen the HTML file.",
+      null,
+      "Close"
+    );
+    console.error(err);
+  }
+}
+
+function bindAttrib(gl, buffer, location, size){
+  gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+  gl.enableVertexAttribArray(location);
+  gl.vertexAttribPointer(location,size,gl.FLOAT,false,0,0);
+}
+
+function uploadTextureIfNeeded(){
+  if (!state.textureDirty || !state.glReady) return;
+  const gl=state.gl;
+  gl.bindTexture(gl.TEXTURE_2D,state.texture);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,uvCanvas);
+  state.textureDirty=false;
+}
+
+function renderScene(){
+  if (!state.glReady) return;
+  const gl=state.gl;
+  uploadTextureIfNeeded();
+
+  const bg=hexToRgb01($("sceneBg").value);
+  gl.clearColor(bg[0],bg[1],bg[2],1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(state.program);
+
+  bindAttrib(gl,state.buffers.position,state.attribs.position,3);
+  bindAttrib(gl,state.buffers.normal,state.attribs.normal,3);
+  bindAttrib(gl,state.buffers.uv,state.attribs.uv,2);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,state.buffers.index);
+
+  const aspect=Math.max(1,state.canvas.width)/Math.max(1,state.canvas.height);
+  const proj=mat4Perspective(42*Math.PI/180,aspect,0.1,100);
+  const rotY=mat4RotationY(state.yaw);
+  const rotX=mat4RotationX(state.pitch);
+  const model=mat4Multiply(rotY,rotX);
+  const view=mat4Translation(state.panX,state.panY,-state.distance);
+  const pv=mat4Multiply(proj,view);
+  const mvp=mat4Multiply(pv,model);
+
+  gl.uniformMatrix4fv(state.uniforms.model,false,model);
+  gl.uniformMatrix4fv(state.uniforms.mvp,false,mvp);
+  gl.uniform1f(state.uniforms.lightStrength,Number($("lightStrength").value)/100);
+  gl.uniform1f(state.uniforms.roughness,Number($("roughness").value)/100);
+  gl.uniform1f(state.uniforms.noLight,$("noLight").checked ? 1.0 : 0.0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D,state.texture);
+  gl.uniform1i(state.uniforms.texture,0);
+
+  gl.drawElements(gl.TRIANGLES,state.buffers.count,gl.UNSIGNED_SHORT,0);
+}
+
+function resizeRenderer(){
+  resizeMercatorFitBox();
+  resizeEqualFitBox();
+  if (!state.canvas || !state.gl) return;
+  const viewport=$("viewport");
+  const dpr=1;
+  const cssW=Math.max(320,viewport.clientWidth);
+  const cssH=Math.max(320,viewport.clientHeight);
+  const previewScale=Math.min(1,1280/cssW,900/cssH);
+  const w=Math.round(cssW*dpr*previewScale);
+  const h=Math.round(cssH*dpr*previewScale);
+  if (state.canvas.width!==w || state.canvas.height!==h){
+    state.canvas.width=w;
+    state.canvas.height=h;
+  }
+  state.gl.viewport(0,0,w,h);
+}
+
+function installInteraction(canvas){
+  canvas.style.touchAction="none";
+  canvas.addEventListener("contextmenu",e=>e.preventDefault());
+
+  canvas.addEventListener("pointerdown",e=>{
+    state.dragging=true;
+    state.dragMode=(e.button===2 || e.shiftKey) ? "pan" : "orbit";
+    state.lastX=e.clientX;
+    state.lastY=e.clientY;
+    canvas.setPointerCapture?.(e.pointerId);
+  });
+
+  canvas.addEventListener("pointermove",e=>{
+    if (!state.dragging) return;
+    const dx=e.clientX-state.lastX;
+    const dy=e.clientY-state.lastY;
+    state.lastX=e.clientX;
+    state.lastY=e.clientY;
+
+    if (state.dragMode==="pan"){
+      const s=state.distance*0.0016;
+      state.panX += dx*s;
+      state.panY -= dy*s;
+    }else{
+      state.yaw += dx*0.007;
+      state.pitch += dy*0.007;
+      state.pitch=Math.max(-1.42,Math.min(1.42,state.pitch));
+    }
+  });
+
+  function endDrag(e){
+    state.dragging=false;
+    try { canvas.releasePointerCapture?.(e.pointerId); } catch {}
+  }
+  canvas.addEventListener("pointerup",endDrag);
+  canvas.addEventListener("pointercancel",endDrag);
+
+  canvas.addEventListener("wheel",e=>{
+    e.preventDefault();
+    state.distance *= Math.exp(e.deltaY*0.001);
+    state.distance=Math.max(2.1,Math.min(9,state.distance));
+  },{passive:false});
+}
+
+$("resetViewBtn").addEventListener("click", () => {
+  state.yaw=Math.PI;
+  state.pitch=0;
+  state.distance=4.2;
+  state.panX=0;
+  state.panY=0;
+  showToast("Orbit view reset");
+});
+
+function encodeHdrChannel(channel){
+  const bytes=[];let i=0,n=channel.length;
+  while(i<n){let run=1;while(i+run<n&&run<127&&channel[i+run]===channel[i])run++;if(run>=4){bytes.push(128+run,channel[i]);i+=run;continue;}const start=i;i+=run;while(i<n){let r=1;while(i+r<n&&r<127&&channel[i+r]===channel[i])r++;if(r>=4||i-start>=128)break;i+=r;}const count=i-start;bytes.push(count);for(let j=start;j<i;j++)bytes.push(channel[j]);}
+  return new Uint8Array(bytes);
+}
+function encodeHdrScanline(rgbe,width){
+  if(width<8||width>32767)return rgbe.slice();const parts=[new Uint8Array([2,2,(width>>8)&255,width&255])];
+  for(let c=0;c<4;c++){const channel=new Uint8Array(width);for(let x=0;x<width;x++)channel[x]=rgbe[x*4+c];parts.push(encodeHdrChannel(channel));}return parts;
+}
+
+function renderPanoramaRgbeTile(tileX,tileTop,tileW,tileH,outW,outH){
+  const gl=panoramaState.gl;
+  if(panoramaCanvas.width!==tileW)panoramaCanvas.width=tileW;if(panoramaCanvas.height!==tileH)panoramaCanvas.height=tileH;
+  gl.viewport(0,0,tileW,tileH);gl.useProgram(panoramaState.program);gl.bindBuffer(gl.ARRAY_BUFFER,panoramaState.buffer);gl.enableVertexAttribArray(panoramaState.attrib);gl.vertexAttribPointer(panoramaState.attrib,2,gl.FLOAT,false,0,0);
+  uploadPanoramaTexture(true);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,panoramaState.texture);applyPanoramaUniforms(1,[outW,outH],[tileX,tileTop],[tileW,tileH]);gl.drawArrays(gl.TRIANGLES,0,6);
+  const pixels=new Uint8Array(tileW*tileH*4);gl.readPixels(0,0,tileW,tileH,gl.RGBA,gl.UNSIGNED_BYTE,pixels);return pixels;
+}
+
+async function exportPanoramaHdr(outW,outH){
+  const gl=panoramaState.gl;const dims=gl.getParameter(gl.MAX_VIEWPORT_DIMS)||[4096,4096];
+  const tileMaxW=Math.max(256,Math.min(outW,dims[0],4096));const blockH=Math.max(8,Math.min(64,dims[1]));
+  const chunks=[];const header=`#?RADIANCE\n# Generated by Spherical Image Studio · 360 Panoramic HDRI Environment Builder\n# Linear scene-referred RGBE master; display diagnostics are not embedded\nFORMAT=32-bit_rle_rgbe\nEXPOSURE=1.000000\nGAMMA=1.000000\n\n-Y ${outH} +X ${outW}\n`;chunks.push(new TextEncoder().encode(header));
+  for(let top=0;top<outH;top+=blockH){
+    const bh=Math.min(blockH,outH-top);const rows=Array.from({length:bh},()=>new Uint8Array(outW*4));
+    for(let x=0;x<outW;x+=tileMaxW){
+      const tw=Math.min(tileMaxW,outW-x);const px=renderPanoramaRgbeTile(x,top,tw,bh,outW,outH);
+      for(let r=0;r<bh;r++){
+        const srcRow=bh-1-r;rows[r].set(px.subarray(srcRow*tw*4,(srcRow+1)*tw*4),x*4);
+      }
+    }
+    for(let r=0;r<bh;r++){const encoded=encodeHdrScanline(rows[r],outW);if(Array.isArray(encoded))chunks.push(...encoded);else chunks.push(encoded);}
+    $('panoramaRenderStatus').textContent=`Encoding linear RGBE HDR ${outW} × ${outH} · ${Math.round(Math.min(outH,top+bh)/outH*100)}%`;
+    await new Promise(res=>setTimeout(res,0));
+  }
+  return new Blob(chunks,{type:'image/vnd.radiance'});
+}
+
+async function exportPanoramaExr(outW,outH){
+  const gl=panoramaState.gl,dims=gl.getParameter(gl.MAX_VIEWPORT_DIMS)||[4096,4096];
+  const tileMaxW=Math.max(256,Math.min(outW,dims[0],4096)),blockH=Math.max(4,Math.min(32,dims[1]));
+  const header=makeOpenExrHeader(outW,outH),rowDataSize=outW*3*2,chunkSize=8+rowDataSize,offsetTable=new Uint8Array(outH*8),odv=new DataView(offsetTable.buffer);
+  let chunkOffset=header.length+offsetTable.length;for(let y=0;y<outH;y++){writeExrOffset64(odv,y*8,chunkOffset);chunkOffset+=chunkSize;}
+  const chunks=[header,offsetTable];
+  for(let top=0;top<outH;top+=blockH){
+    const bh=Math.min(blockH,outH-top),rows=Array.from({length:bh},()=>new Uint8Array(outW*4));
+    for(let x=0;x<outW;x+=tileMaxW){
+      const tw=Math.min(tileMaxW,outW-x),px=renderPanoramaRgbeTile(x,top,tw,bh,outW,outH);
+      for(let r=0;r<bh;r++){const srcRow=bh-1-r;rows[r].set(px.subarray(srcRow*tw*4,(srcRow+1)*tw*4),x*4);}
+    }
+    for(let r=0;r<bh;r++){
+      const y=top+r,row=rows[r],chunk=new Uint8Array(chunkSize),dv=new DataView(chunk.buffer);dv.setInt32(0,y,true);dv.setUint32(4,rowDataSize,true);
+      const rBase=8,gBase=8+outW*2,bBase=8+outW*4;
+      for(let x=0;x<outW;x++){
+        const i=x*4,c=decodeRgbePixel(row[i],row[i+1],row[i+2],row[i+3]);
+        dv.setUint16(rBase+x*2,floatToHalfBits(c[0]),true);dv.setUint16(gBase+x*2,floatToHalfBits(c[1]),true);dv.setUint16(bBase+x*2,floatToHalfBits(c[2]),true);
+      }
+      chunks.push(chunk);
+    }
+    $('panoramaRenderStatus').textContent=`Encoding linear HALF OpenEXR ${outW} × ${outH} · ${Math.round(Math.min(outH,top+bh)/outH*100)}%`;
+    await new Promise(res=>setTimeout(res,0));
+  }
+  return new Blob(chunks,{type:'image/x-exr'});
+}
+
+async function exportPanoramaPng(outW,outH){
+  const gl=panoramaState.gl,dims=gl.getParameter(gl.MAX_VIEWPORT_DIMS)||[4096,4096];
+  if(outW>dims[0]||outH>dims[1])throw new Error(`PNG preview requires one WebGL viewport of ${outW} × ${outH}; this GPU reports ${dims[0]} × ${dims[1]}. Choose a smaller PNG size or export Radiance HDR / OpenEXR.`);
+  const oldView=panoramaState.viewMode;panoramaState.viewMode='equirect';renderPanorama('full',outW,outH);panoramaState.viewMode=oldView;
+  const c=document.createElement('canvas');c.width=outW;c.height=outH;c.getContext('2d').drawImage(panoramaCanvas,0,0);
+  return await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('PNG export returned no data.')),'image/png'));
+}
+
+async function exportPanoramaFrame(){
+  if(!panoramaState.image){openModal('No image loaded','Import a source image in Tab 2 before exporting an HDRI environment.',null,'Close');return;}
+  if(!panoramaState.ready){openModal('360 renderer unavailable','WebGL is required for the 360 Panoramic renderer.',null,'Close');return;}
+  const outW=Math.min(2048,Math.max(1024,Number($('panoResolution').value)||2048)),outH=outW/2,mime=$('panoFormat').value;const button=$('panoExportBtn'),oldText=button.textContent;button.disabled=true;button.textContent=`Exporting ${outW>=2048?'2K':'1K'}…`;
+  try{
+    let blob,ext;if(mime==='image/vnd.radiance'){blob=await exportPanoramaHdr(outW,outH);ext='hdr';}else if(mime==='image/x-exr'){blob=await exportPanoramaExr(outW,outH);ext='exr';}else{blob=await exportPanoramaPng(outW,outH);ext='png';}
+    const stem=(panoramaState.imageName||'environment').replace(/\.[^.]+$/,'').replace(/[^\w\-]+/g,'_');const filename=`${stem}_360_HDRI_${outW}x${outH}.${ext}`;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);showToast(`Exported ${filename}`);
+  }catch(err){openModal('360 export failed',String(err?.message||err),null,'Close');}
+  finally{button.disabled=false;button.textContent=oldText;requestPanoramaRender('full');}
+}
+
+$('panoExportBtn').addEventListener('click', async () => {
+  if(!validatePanoramaResolution()){openModal('Invalid resolution','360 Panoramic export is limited to 1K or 2K, with 2K as the maximum.',null,'Close');return;}
+  if(!panoramaState.image){openModal('No image loaded','Import a source image in Tab 2 before exporting an HDRI environment.',null,'Close');return;}
+  if(!panoramaState.ready){openModal('360 renderer unavailable','WebGL is required for the 360 Panoramic renderer.',null,'Close');return;}
+  const outW=Math.min(2048,Math.max(1024,Number($('panoResolution').value)||2048)),outH=outW/2,fmt=$('panoFormat').value,hdr=fmt==='image/vnd.radiance',exr=fmt==='image/x-exr';
+  const sourceNote='Source projection: Equirectangular 360° × 180° only. Diagnostic overlays are preview-only and are never embedded.';
+  await withBusyButton($('panoExportBtn'),'Preparing Preview…', async () => {
+    const previewBlob = await exportPanoramaPng(outW,outH);
+    const previewUrl = URL.createObjectURL(previewBlob);
+    const message = hdr
+      ? 'Review this tone-mapped preview first. If it looks correct, confirm to generate the final linear Radiance .hdr file.'
+      : exr
+        ? 'Review this tone-mapped preview first. If it looks correct, confirm to generate the final linear OpenEXR .exr file.'
+        : 'Review this rendered panorama first. If it looks correct, confirm to generate the final PNG file.';
+    const meta = hdr
+      ? `Final export: ${outW} × ${outH} · exact 2:1 · Radiance RGBE .hdr · preview only, not tone-mapped into the final file. ${sourceNote}`
+      : exr
+        ? `Final export: ${outW} × ${outH} · exact 2:1 · OpenEXR HALF RGB · uncompressed scanlines · scene-linear master. ${sourceNote}`
+        : `Final export: ${outW} × ${outH} · exact 2:1 · PNG reference export. Diagnostic overlays remain excluded. ${sourceNote}`;
+    openExportPreview('360 Panoramic Export Preview', message, previewUrl, meta, exportPanoramaFrame, hdr ? 'Generate Final .HDR' : exr ? 'Generate Final .EXR' : 'Generate Final PNG');
+  });
+});
+
+function getEqualViewportExportSize(){
+  const width = Math.max(600, Math.min(3000, Number($("exportWidth").value) || 1920));
+  const height = Math.max(600, Math.min(3000, Number($("exportHeight").value) || 1080));
+  return { width, height };
+}
+
+function validateTab1Resolution(showLabels = true){
+  const w=Number($("exportWidth").value),h=Number($("exportHeight").value);
+  const widthValid=Number.isFinite(w)&&w>=600&&w<=3000;
+  const heightValid=Number.isFinite(h)&&h>=600&&h<=3000;
+  if(showLabels){
+    $("exportWidthInvalid").classList.toggle("show",!widthValid);
+    $("exportHeightInvalid").classList.toggle("show",!heightValid);
+    $("exportWidth").classList.toggle("input-invalid",!widthValid);
+    $("exportHeight").classList.toggle("input-invalid",!heightValid);
+  }
+  $("exportBtn").disabled=!(widthValid&&heightValid);
+  return widthValid&&heightValid;
+}
+
+function validatePanoramaResolution(){
+  const v=Number($("panoResolution").value);
+  const valid=Number.isFinite(v)&&v>=1024&&v<=2048;
+  $("panoResolutionInvalid").classList.toggle("show",!valid);
+  $("panoExportBtn").disabled=!valid;
+  return valid;
+}
+
+$("exportBtn").addEventListener("click", async () => {
+  if (!validateTab1Resolution(true)){
+    openModal("Invalid resolution", "Tab 1 export Width and Height must each be between 600 and 3000 pixels.", null, "Close");
+    return;
+  }
+  if (!state.image){
+    openModal("No image loaded", "Import a bitmap image before exporting.", null, "Close");
+    return;
+  }
+
+  if (state.activePreview === "mercator"){
+    await withBusyButton($("exportBtn"), "Preparing Preview…", async () => {
+      const { width: outW, height: outH } = getEqualViewportExportSize();
+      const out = document.createElement("canvas");
+      out.width = outW;
+      out.height = outH;
+      const ctx = out.getContext("2d");
+      ctx.fillStyle = $("sphereColor").value;
+      ctx.fillRect(0,0,outW,outH);
+      const srcW = uvCanvas.width;
+      const srcH = uvCanvas.height;
+      for (let y = 0; y < outH; y++){
+        const mercY = Math.PI * (1 - 2 * (y + 0.5) / outH);
+        const lat = Math.atan(Math.sinh(mercY));
+        const srcY = (Math.PI/2 - lat) / Math.PI * srcH;
+        ctx.drawImage(uvCanvas, 0, Math.max(0, Math.min(srcH - 1, srcY)), srcW, 1, 0, y, outW, 1);
+      }
+      drawMercatorGrid(ctx, outW, outH);
+      const previewUrl = URL.createObjectURL(await canvasToBlob(out, 'image/png'));
+      const finalMime = $("exportFormat").value;
+      const finalExt = finalMime === 'image/jpeg' ? 'JPG' : finalMime === 'image/webp' ? 'WebP' : 'PNG';
+      openExportPreview(
+        'Mercator Export Preview',
+        'Review the rendered Mercator image first. Confirm only if the result already matches your preference.',
+        previewUrl,
+        `Final export will generate ${outW} × ${outH} using ${finalExt}. Mercator now follows the Width / Height canvas input set by the user.`,
+        exportMercatorFrame,
+        'Generate Final File'
+      );
+    });
+    return;
+  }
+
+  if (state.activePreview === "equal"){
+    await withBusyButton($("exportBtn"), "Preparing Preview…", async () => {
+      const { width: outW, height: outH } = getEqualViewportExportSize();
+      const out = document.createElement("canvas");
+      out.width = outW;
+      out.height = outH;
+      const ctx = out.getContext("2d");
+      ctx.fillStyle = $("sphereColor").value;
+      ctx.fillRect(0, 0, outW, outH);
+      const srcW = uvCanvas.width;
+      const srcH = uvCanvas.height;
+      const srcPixels = uvCtx.getImageData(0, 0, srcW, srcH).data;
+      const imgData = ctx.createImageData(outW, outH);
+      const data = imgData.data;
+      for (let y = 0; y < outH; y++){
+        const projY = (1 - 2 * (y + 0.5) / outH) * Math.SQRT2;
+        for (let x = 0; x < outW; x++){
+          const projX = (2 * (x + 0.5) / outW - 1) * (2 * Math.SQRT2);
+          if ((projX * projX) / 8 + (projY * projY) / 2 > 1) continue;
+          const inv = mollweideInverse(projX, projY);
+          if (!inv) continue;
+          const uv = mapLonLatToUv(inv.lon, inv.lat, srcW, srcH);
+          const sx = Math.max(0, Math.min(srcW - 1, Math.round(uv.sx)));
+          const sy = Math.max(0, Math.min(srcH - 1, Math.round(uv.sy)));
+          const si = (sy * srcW + sx) * 4;
+          const di = (y * outW + x) * 4;
+          data[di] = srcPixels[si];
+          data[di + 1] = srcPixels[si + 1];
+          data[di + 2] = srcPixels[si + 2];
+          data[di + 3] = 255;
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+      drawEqualGrid(ctx, outW, outH);
+      const previewUrl = URL.createObjectURL(await canvasToBlob(out, 'image/png'));
+      const finalMime = $("exportFormat").value;
+      const finalExt = finalMime === 'image/jpeg' ? 'JPG' : finalMime === 'image/webp' ? 'WebP' : 'PNG';
+      openExportPreview(
+        'Equal Projection Export Preview',
+        'Review the rendered Equal Projection image first. Confirm only if the result already matches your preference.',
+        previewUrl,
+        `Final export will generate ${outW} × ${outH} using ${finalExt}. Equal Projection now follows the Width / Height canvas input set by the user. Grid lines remain included when enabled.`,
+        exportEqualFrame,
+        'Generate Final File'
+      );
+    });
+    return;
+  }
+
+  if (!state.glReady || !state.canvas){
+    openModal("3D engine not ready", "Native WebGL must be available before a sphere frame can be exported.", null, "Close");
+    return;
+  }
+
+  await withBusyButton($("exportBtn"), "Preparing Preview…", async () => {
+    const { width: outW, height: outH } = getEqualViewportExportSize();
+    const canvas = state.canvas;
+    const gl = state.gl;
+    const oldW = canvas.width, oldH = canvas.height;
+    try{
+      canvas.width = outW;
+      canvas.height = outH;
+      gl.viewport(0,0,outW,outH);
+      renderScene();
+      const snapshot = document.createElement('canvas');
+      snapshot.width = outW;
+      snapshot.height = outH;
+      snapshot.getContext('2d').drawImage(canvas,0,0);
+      const previewUrl = URL.createObjectURL(await canvasToBlob(snapshot, 'image/png'));
+      const finalMime = $("exportFormat").value;
+      const finalExt = finalMime === 'image/jpeg' ? 'JPG' : finalMime === 'image/webp' ? 'WebP' : 'PNG';
+      openExportPreview(
+        'Sphere Export Preview',
+        'Review the rendered orbit frame first. Confirm only if the result already matches your preference.',
+        previewUrl,
+        `Final export will generate ${outW} × ${outH} using ${finalExt}.`,
+        exportFrame,
+        'Generate Final File'
+      );
+    } finally {
+      canvas.width = oldW;
+      canvas.height = oldH;
+      gl.viewport(0,0,oldW,oldH);
+      renderScene();
+    }
+  });
+});
+
+async function exportMercatorFrame(){
+  const { width: outW, height: outH } = getEqualViewportExportSize();
+  const mime = $("exportFormat").value;
+  const quality = Number($("exportQuality").value) / 100;
+
+  try{
+    const out = document.createElement("canvas");
+    out.width = outW;
+    out.height = outH;
+    const ctx = out.getContext("2d");
+    ctx.fillStyle = $("sphereColor").value;
+    ctx.fillRect(0,0,outW,outH);
+
+    const srcW = uvCanvas.width;
+    const srcH = uvCanvas.height;
+
+    for (let y = 0; y < outH; y++){
+      const mercY = Math.PI * (1 - 2 * (y + 0.5) / outH);
+      const lat = Math.atan(Math.sinh(mercY));
+      const srcY = (Math.PI/2 - lat) / Math.PI * srcH;
+      ctx.drawImage(
+        uvCanvas,
+        0, Math.max(0, Math.min(srcH - 1, srcY)), srcW, 1,
+        0, y, outW, 1
+      );
+    }
+
+    drawMercatorGrid(ctx, outW, outH);
+
+    const blob = await new Promise((resolve,reject) => {
+      out.toBlob(
+        b => b ? resolve(b) : reject(new Error("Mercator export returned no data.")),
+        mime,
+        mime === "image/png" ? undefined : quality
+      );
+    });
+
+    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1];
+    const stem = (state.imageName || "image").replace(/\.[^.]+$/,"" ).replace(/[^\w\-]+/g,"_");
+    const filename = `${stem}_mercator_${outW}x${outH}.${ext}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    showToast(`Exported ${filename}`);
+  }catch(err){
+    openModal("Export failed", String(err?.message || err), null, "Close");
+  }
+}
+
+async function exportEqualFrame(){
+  const viewportSize = getEqualViewportExportSize();
+  const outW = viewportSize.width;
+  const outH = viewportSize.height;
+  const mime = $("exportFormat").value;
+  const quality = Number($("exportQuality").value) / 100;
+
+  try{
+    const out = document.createElement("canvas");
+    out.width = outW;
+    out.height = outH;
+    const ctx = out.getContext("2d");
+    ctx.fillStyle = $("sphereColor").value;
+    ctx.fillRect(0, 0, outW, outH);
+
+    if (state.image){
+      const srcW = uvCanvas.width;
+      const srcH = uvCanvas.height;
+      const srcPixels = uvCtx.getImageData(0, 0, srcW, srcH).data;
+      const imgData = ctx.createImageData(outW, outH);
+      const data = imgData.data;
+
+      for (let y = 0; y < outH; y++){
+        const projY = (1 - 2 * (y + 0.5) / outH) * Math.SQRT2;
+        for (let x = 0; x < outW; x++){
+          const projX = (2 * (x + 0.5) / outW - 1) * (2 * Math.SQRT2);
+          if ((projX * projX) / 8 + (projY * projY) / 2 > 1) continue;
+
+          const inv = mollweideInverse(projX, projY);
+          if (!inv) continue;
+          const uv = mapLonLatToUv(inv.lon, inv.lat, srcW, srcH);
+          const sx = Math.max(0, Math.min(srcW - 1, Math.round(uv.sx)));
+          const sy = Math.max(0, Math.min(srcH - 1, Math.round(uv.sy)));
+          const si = (sy * srcW + sx) * 4;
+          const di = (y * outW + x) * 4;
+
+          data[di] = srcPixels[si];
+          data[di + 1] = srcPixels[si + 1];
+          data[di + 2] = srcPixels[si + 2];
+          data[di + 3] = 255;
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      drawEqualGrid(ctx, outW, outH);
+    }
+
+    const blob = await new Promise((resolve,reject) => {
+      out.toBlob(
+        b => b ? resolve(b) : reject(new Error("Equal projection export returned no data.")),
+        mime,
+        mime === "image/png" ? undefined : quality
+      );
+    });
+
+    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1];
+    const stem = (state.imageName || "image").replace(/\.[^.]+$/,"").replace(/[^\w\-]+/g,"_");
+    const filename = `${stem}_equal_projection_${outW}x${outH}.${ext}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    showToast(`Exported ${filename}`);
+  }catch(err){
+    openModal("Export failed", String(err?.message || err), null, "Close");
+  }
+}
+
+async function exportFrame(){
+  const canvas=state.canvas;
+  const gl=state.gl;
+  const outW=Math.max(600,Math.min(3000,Number($("exportWidth").value)||1920));
+  const outH=Math.max(600,Math.min(3000,Number($("exportHeight").value)||1080));
+  const mime=$("exportFormat").value;
+  const quality=Number($("exportQuality").value)/100;
+
+  const oldW=canvas.width, oldH=canvas.height;
+  try{
+    canvas.width=outW;
+    canvas.height=outH;
+    gl.viewport(0,0,outW,outH);
+    renderScene();
+
+    const blob=await new Promise((resolve,reject)=>{
+      canvas.toBlob(
+        b=>b?resolve(b):reject(new Error("Canvas export returned no data.")),
+        mime,
+        mime==="image/png"?undefined:quality
+      );
+    });
+
+    const ext=mime==="image/jpeg"?"jpg":mime.split("/")[1];
+    const stem=(state.imageName||"sphere").replace(/\.[^.]+$/,"").replace(/[^\w\-]+/g,"_");
+    const filename=`${stem}_spherical_frame_${outW}x${outH}.${ext}`;
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    showToast(`Exported ${filename}`);
+  }catch(err){
+    openModal("Export failed",String(err?.message||err),null,"Close");
+  }finally{
+    canvas.width=oldW;
+    canvas.height=oldH;
+    gl.viewport(0,0,oldW,oldH);
+  }
+}
+
+window.addEventListener("beforeunload",()=>{
+  cancelPanoramaPrewarm();
+  clearTimeout(panoramaState.finalTimer);clearTimeout(panoramaState.renderTimer);
+  if(panoramaState.raf)cancelAnimationFrame(panoramaState.raf);
+  if (state.image && state.image._objectUrl) URL.revokeObjectURL(state.image._objectUrl);
+  if (panoramaState.image && panoramaState.image._objectUrl) URL.revokeObjectURL(panoramaState.image._objectUrl);
+  if (state.animationId) cancelAnimationFrame(state.animationId);
+  if (state.gl){
+    const gl=state.gl;
+    if (state.texture) gl.deleteTexture(state.texture);
+    if (state.program) gl.deleteProgram(state.program);
+    if (state.buffers){
+      gl.deleteBuffer(state.buffers.position);
+      gl.deleteBuffer(state.buffers.normal);
+      gl.deleteBuffer(state.buffers.uv);
+      gl.deleteBuffer(state.buffers.index);
+    }
+  }
+  if (panoramaState.gl){
+    const pgl = panoramaState.gl;
+    if (panoramaState.texture) pgl.deleteTexture(panoramaState.texture);
+    if (panoramaState.program) pgl.deleteProgram(panoramaState.program);
+    if (panoramaState.buffer) pgl.deleteBuffer(panoramaState.buffer);
+  }
+});
+
+updatePanoramaLabels();
+renderUv();
+resizeMercatorFitBox();
+resizeEqualFitBox();
+setPreviewTab("sphere");
+setWorkspaceTab("spherical");
+initNativeWebGL();
+// Pre-compile Tab 2 while Tab 1 is idle; if Tab 2 already has its own source, stage only that texture.
+// This keeps the first 360 Panoramic click responsive without synchronizing either tab’s import state.
+schedulePanoramaPrewarm(700);
+drawPanoramaOverlay();
+</script>
+</body>
+</html>
